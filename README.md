@@ -34,13 +34,13 @@ The requirements.txt file can be used to install the necessary packages into a v
 
 ## Run an experiment 
 ```shell
-python src/main.py --config=dsr --env-config=foraging with env_args.max_food=4 buffer_size=5000 batch_size=32 t_max=4050000 n_subtasks=3
+python src/main.py --config=macl --env-config=foraging with env_args.max_food=4 buffer_size=5000 batch_size=32 t_max=4050000
 ```
 ```shell
-python src/main.py --config=dsr --env-config=pred_prey_punish with buffer_size=5000 batch_size=32 t_max=2050000
+python src/main.py --config=macl --env-config=pred_prey_punish with buffer_size=5000 batch_size=32 t_max=2050000
 ```
 ```shell
-python src/main.py --config=dsr --env-config=sc2 with env_args.map_name=MMM2 buffer_size=5000 batch_size=32 t_max=2050000 n_subtasks=3 
+python src/main.py --config=macl --env-config=sc2 with env_args.map_name=MMM2 buffer_size=5000 batch_size=32 t_max=2050000
 ```
 
 

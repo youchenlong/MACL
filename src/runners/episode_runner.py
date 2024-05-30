@@ -90,9 +90,6 @@ class EpisodeRunner:
                     self.logger.log_scalar('player_levels', player_levels)
                     self.logger.log_scalar('food_positions', food_positions)
                     self.logger.log_scalar('food_levels', food_levels)
-                self.logger.log_scalar('subtask_latent_embed', self.mac.agent.subtask_latent_embed)
-                self.logger.log_scalar('subtask_prob_logit', self.mac.agent.subtask_prob_logit)
-                self.logger.log_scalar('subtask_prob', self.mac.agent.subtask_prob)
 
             episode_return += reward
 
