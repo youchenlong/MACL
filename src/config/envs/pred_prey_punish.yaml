@@ -19,7 +19,7 @@ env_args:
     directed_observations: False   # Agents observe square around them (False) or a cone in the direction of the last action (True).
     directed_cone_narrow: True     # Whether the diagonal is excluded from the directed_observation cone (True)
     directed_exta_actions: True    # Whether the observation cone is controlled by movement (False) or actions (True)
-    episode_limit: 200      # maximum number of time steps per episode
+    episode_limit: 100      # maximum number of time steps per episode
     intersection_global_view: False # intersection specific (MACKRL)
     intersection_unknown: False     # intersection specific (MACKRL)
 #    miscapture_punishment: -1       # punishment if less than capture_action_conditions agents executes capture_action
