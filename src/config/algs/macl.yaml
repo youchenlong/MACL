@@ -29,7 +29,7 @@ isSoftmax: False
 
 consensus_dim: 16
 contrasTemperature: 0.5
-contrastive_loss_weight: 0.5
+contrastive_loss_weight: 0.1
 
 mac: "macl_mac"
 agent: "macl"

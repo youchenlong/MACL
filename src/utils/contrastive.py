@@ -14,9 +14,15 @@ def infoNCE_loss(features, positive_mask, contrasTemperature, batch_size=512):
     total_loss = 0
     n_batchs = (bs + batch_size - 1) // batch_size
     for i in range(n_batchs):
+        # free idle GPU memory
+        th.cuda.empty_cache()
+        print("batch ", i)
+        print("GPU memory reserved: ", th.cuda.memory_reserved())
+        print("GPU memory allocated: ", th.cuda.memory_allocated())
         start = i * batch_size
         end = min(start + batch_size, bs)
         features_batch = features[start:end]
+        positive_mask_batch = positive_mask[start:end]
         # similarity matrix
         sim_matrix = th.matmul(features_batch, features.T) / contrasTemperature
         # Stability trick: Subtract the maximum value for numerical stability
@@ -24,13 +30,11 @@ def infoNCE_loss(features, positive_mask, contrasTemperature, batch_size=512):
         logits = sim_matrix - logits_max.detach()
         # negative logits
         exp_logits = th.exp(logits)
-        exp_sum = exp_logits.sum(1, keepdim=True) - exp_logits * positive_mask[start:end]
+        exp_sum = exp_logits.sum(1, keepdim=True) - exp_logits * positive_mask_batch
         # positive logits
         log_prob = logits - th.log(exp_sum)
         # mask out the negative samples
-        positive_mask_batch = positive_mask[start:end]
         log_prob_pos = (positive_mask_batch * log_prob).sum(1) / positive_mask_batch.sum(1)
-        # contrastive loss
         total_loss += -log_prob_pos.mean()
     total_loss /= n_batchs
     return total_loss
