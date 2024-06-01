@@ -108,15 +108,13 @@ class MACLLearner:
 
         # encode and project
         online_projection = self.cb.calc_student(hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
+        online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts, n_agents, consensus_dim]
         target_projection = self.cb.calc_teacher(hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
         center_target_projection = target_projection - self.center.detach() # [bs * ts * n_agents, consensus_dim]
-
-        # predict
-        online_prediction = F.softmax(online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp, dim=-1) # [bs * ts, n_agents, consensus_dim]
-        target_prediction = F.softmax(center_target_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.target_temp, dim=-1) # [bs * ts, n_agents, consensus_dim]
+        center_target_projection = center_target_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.target_temp # [bs * ts, n_agents, consensus_dim]
 
         # consensus loss
-        consensus_loss = - th.bmm(target_prediction.detach(), th.log(online_prediction).transpose(1, 2)) # [bs * ts, n_agents, n_agents]
+        consensus_loss = - th.bmm(F.softmax(center_target_projection, dim=-1).detach(), th.log_softmax(online_projection, dim=-1).transpose(1, 2)) # [bs * ts, n_agents, n_agents]
 
         # mask out self and filled data
         consensus_mask = th.ones_like(consensus_loss, device=consensus_loss.device)  # [bs * ts, n_agents, n_agents]
