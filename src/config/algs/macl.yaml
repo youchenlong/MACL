@@ -28,8 +28,12 @@ softTemperature: 1
 isSoftmax: False
 
 consensus_dim: 16
-contrasTemperature: 0.5
-contrastive_loss_weight: 0.1
+consensus_loss_weight: 0.1
+tau: 0.996
+center_tau: 0.9
+online_temp: 0.1
+target_temp: 0.04
+
 
 mac: "macl_mac"
 agent: "macl"

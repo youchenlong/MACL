@@ -14,11 +14,6 @@ def infoNCE_loss(features, positive_mask, contrasTemperature, batch_size=512):
     total_loss = 0
     n_batchs = (bs + batch_size - 1) // batch_size
     for i in range(n_batchs):
-        # free idle GPU memory
-        th.cuda.empty_cache()
-        print("batch ", i)
-        print("GPU memory reserved: ", th.cuda.memory_reserved())
-        print("GPU memory allocated: ", th.cuda.memory_allocated())
         start = i * batch_size
         end = min(start + batch_size, bs)
         features_batch = features[start:end]
