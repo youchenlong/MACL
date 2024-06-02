@@ -7,10 +7,18 @@ class ConsensusBuilder(nn.Module):
         super(ConsensusBuilder, self).__init__()
         self.args = args
         self.online_encoder = MultiHeadAttention(self.args.num_heads, self.args.attn_dim, self.args.softTemperature, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, verbose=True, isSoftmax=self.args.isSoftmax)
-        self.online_projector = nn.Linear(self.args.rnn_hidden_dim + self.args.attn_dim, self.args.consensus_dim)
+        self.online_projector = nn.Sequential(
+            nn.Linear(self.args.rnn_hidden_dim + self.args.attn_dim, self.args.consensus_dim),
+            nn.ReLU(),
+            nn.Linear(self.args.consensus_dim, self.args.consensus_dim)
+        )
 
         self.target_encoder = MultiHeadAttention(self.args.num_heads, self.args.attn_dim, self.args.softTemperature, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, verbose=True, isSoftmax=self.args.isSoftmax)
-        self.target_projector = nn.Linear(self.args.rnn_hidden_dim + self.args.attn_dim, self.args.consensus_dim)
+        self.target_projector = nn.Sequential(
+            nn.Linear(self.args.rnn_hidden_dim + self.args.attn_dim, self.args.consensus_dim),
+            nn.ReLU(),
+            nn.Linear(self.args.consensus_dim, self.args.consensus_dim)
+        )
 
     def calc_student(self, inputs):
         """
