@@ -19,7 +19,7 @@ class MACLMAC:
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
         # Only select actions for the selected batch elements in bs
         avail_actions = ep_batch["avail_actions"][:, t_ep]
-        agent_outputs = self.forward(ep_batch, t_ep, test_mode=test_mode)
+        agent_outputs, agent_inputs = self.forward(ep_batch, t_ep, test_mode=test_mode)
         chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
         return chosen_actions
 
@@ -51,7 +51,7 @@ class MACLMAC:
                     # Zero out the unavailable actions
                     agent_outs[reshaped_avail_actions == 0] = 0.0
 
-        return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
+        return agent_outs.view(ep_batch.batch_size, self.n_agents, -1), agent_inputs.view(ep_batch.batch_size, self.n_agents, -1)
 
     def init_hidden(self, batch_size):
         self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
@@ -88,7 +88,7 @@ class MACLMAC:
         if self.args.obs_agent_id:
             inputs.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
 
-        inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1)
+        inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1) # [bs * n_agents, input_shape]
         return inputs
 
     def _get_input_shape(self, scheme):

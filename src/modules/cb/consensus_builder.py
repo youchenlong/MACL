@@ -1,45 +1,43 @@
+import copy
 import torch as th
 import torch.nn as nn
-from utils.attention import MultiHeadAttention
 
 class ConsensusBuilder(nn.Module):
-    def __init__(self, args):
+    def __init__(self, encoder, args, input_shape):
         super(ConsensusBuilder, self).__init__()
         self.args = args
-        self.online_encoder = MultiHeadAttention(self.args.num_heads, self.args.attn_dim, self.args.softTemperature, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, verbose=True, isSoftmax=self.args.isSoftmax)
+        self.input_shape = input_shape
+        self.online_encoder = encoder
         self.online_projector = nn.Sequential(
-            nn.Linear(self.args.rnn_hidden_dim + self.args.attn_dim, self.args.consensus_dim),
+            nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_dim),
             nn.ReLU(),
             nn.Linear(self.args.consensus_dim, self.args.consensus_dim)
         )
 
-        self.target_encoder = MultiHeadAttention(self.args.num_heads, self.args.attn_dim, self.args.softTemperature, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, self.args.rnn_hidden_dim, verbose=True, isSoftmax=self.args.isSoftmax)
+        self.target_encoder = copy.deepcopy(self.online_encoder)
         self.target_projector = nn.Sequential(
-            nn.Linear(self.args.rnn_hidden_dim + self.args.attn_dim, self.args.consensus_dim),
+            nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_dim),
             nn.ReLU(),
             nn.Linear(self.args.consensus_dim, self.args.consensus_dim)
         )
 
-    def calc_student(self, inputs):
+    def calc_student(self, inputs, hidden_states):
         """
-        inputs: [bs * ts, n_agents, rnn_hidden_dim]
+        inputs: [bs * ts, n_agents, input_shape]
+        hidden_states: [bs * ts, n_agents, rnn_hidden_dim]
         """
-        q = inputs.reshape(-1, 1, self.args.rnn_hidden_dim) # [bs * ts * n_agents, 1, rnn_hidden_dim]
-        k = inputs.unsqueeze(1).expand(-1, self.args.n_agents, -1, -1).reshape(-1, self.args.n_agents, self.args.rnn_hidden_dim) # [bs * ts * n_agents, n_agents, rnn_hidden_dim]
-        v = inputs.unsqueeze(1).expand(-1, self.args.n_agents, -1, -1).reshape(-1, self.args.n_agents, self.args.rnn_hidden_dim) # [bs * ts * n_agents, n_agents, rnn_hidden_dim]
-        representation = self.online_encoder(q, k, v) # [bs * ts * n_agents, 1, attn_dim]
-        projection = self.online_projector(th.cat([inputs.view(-1, self.args.rnn_hidden_dim), representation.view(-1, self.args.attn_dim)], dim=-1))
+        representation = self.online_encoder(inputs.view(-1, self.input_shape), hidden_states) # [bs * ts * n_agents, rnn_hidden_dim]
+        projection = self.online_projector(representation)
         return projection
 
-    def calc_teacher(self, inputs):
+
+    def calc_teacher(self, inputs, hidden_states):
         """
-        inputs: [bs * ts, n_agents, rnn_hidden_dim]
+        inputs: [bs * ts, n_agents, input_shape]
+        hidden_states: [bs * ts, n_agents, rnn_hidden_dim]
         """
-        q = inputs.reshape(-1, 1, self.args.rnn_hidden_dim) # [bs * ts * n_agents, 1, rnn_hidden_dim]
-        k = inputs.unsqueeze(1).expand(-1, self.args.n_agents, -1, -1).reshape(-1, self.args.n_agents, self.args.rnn_hidden_dim) # [bs * ts * n_agents, n_agents, rnn_hidden_dim]
-        v = inputs.unsqueeze(1).expand(-1, self.args.n_agents, -1, -1).reshape(-1, self.args.n_agents, self.args.rnn_hidden_dim) # [bs * ts * n_agents, n_agents, rnn_hidden_dim]
-        representation = self.target_encoder(q, k, v) # [bs * ts * n_agents, attn_dim]
-        projection = self.target_projector(th.cat([inputs.view(-1, self.args.rnn_hidden_dim), representation.view(-1, self.args.attn_dim)], dim=-1))
+        representation = self.target_encoder(inputs.view(-1, self.input_shape), hidden_states) # [bs * ts * n_agents, rnn_hidden_dim]
+        projection = self.target_projector(representation)
         return projection
 
     def parameters(self):

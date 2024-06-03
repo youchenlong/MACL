@@ -15,7 +15,7 @@ class MACLLearner:
         self.mac = mac
         self.logger = logger
 
-        self.cb = ConsensusBuilder(args)
+        self.cb = ConsensusBuilder(mac.agent.encoder, args, mac.agent.input_shape)
         self.center = th.zeros(1, self.args.consensus_dim).cuda()
 
         self.params = list(self.mac.parameters()) + list(self.cb.parameters())
@@ -52,15 +52,18 @@ class MACLLearner:
         # Calculate estimated Q-Values
         mac_out = []
         hidden_states = []
+        observations = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            agent_outs = self.mac.forward(batch, t=t)
-            mac_out.append(agent_outs)
-            # we don't need the last timesteps hidden state to be compatible with the mask
             if t < batch.max_seq_length - 1:
-                hidden_states.append(self.mac.hidden_states.view(self.args.batch_size, self.args.n_agents, -1))
-        mac_out = th.stack(mac_out, dim=1)  # Concat over time
+                hidden_states.append(self.mac.hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim))
+            agent_outs, agent_inputs = self.mac.forward(batch, t=t)
+            mac_out.append(agent_outs)
+            if t < batch.max_seq_length - 1:
+                observations.append(agent_inputs)
+        mac_out = th.stack(mac_out, dim=1)  # [bs, ts+1, n_agents, n_actions]
         hidden_states = th.stack(hidden_states, dim=1) # [bs, ts, n_agents, rnn_hidden_dim]
+        observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
 
         # Pick the Q-Values for the actions taken by each agent
         chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
@@ -69,7 +72,7 @@ class MACLLearner:
         target_mac_out = []
         self.target_mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            target_agent_outs = self.target_mac.forward(batch, t=t)
+            target_agent_outs, _ = self.target_mac.forward(batch, t=t)
             target_mac_out.append(target_agent_outs)
         # We don't need the first timesteps Q-Value estimate for calculating targets
         target_mac_out = th.stack(target_mac_out[1:], dim=1)  # Concat across time
@@ -107,9 +110,9 @@ class MACLLearner:
         td_loss = (masked_td_error ** 2).sum() / mask.sum()
 
         # encode and project
-        online_projection = self.cb.calc_student(hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
+        online_projection = self.cb.calc_student(observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
         online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts, n_agents, consensus_dim]
-        target_projection = self.cb.calc_teacher(hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
+        target_projection = self.cb.calc_teacher(observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
         center_target_projection = target_projection - self.center.detach() # [bs * ts * n_agents, consensus_dim]
         center_target_projection = center_target_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.target_temp # [bs * ts, n_agents, consensus_dim]
 
