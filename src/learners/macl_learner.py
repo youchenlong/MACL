@@ -41,6 +41,34 @@ class MACLLearner:
         self.log_stats_t = -self.args.learner_log_interval - 1
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
+        batch_size = batch.batch_size // 2
+        td_loss = self.calc_rl_loss(batch[:batch_size], t_env, episode_num)
+        consensus_loss, online_projection, target_projection = self.calc_consensus_loss(batch[batch_size:], t_env, episode_num)
+
+        loss = td_loss + self.args.consensus_loss_weight * consensus_loss
+
+        # Optimise
+        self.optimiser.zero_grad()
+        loss.backward()
+        grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
+        self.optimiser.step()
+
+        self.center = (self.args.center_tau * self.center + (1 - self.args.center_tau) * target_projection.mean(dim=0, keepdim=True)).detach()
+        self.cb.update_targets()
+
+        if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
+            self._update_targets()
+            self.last_target_update_episode = episode_num
+
+        if t_env - self.log_stats_t >= self.args.learner_log_interval:
+            self.logger.log_stat("loss", loss.item(), t_env)
+            self.logger.log_stat("td_loss", td_loss.item(), t_env)
+            self.logger.log_stat("consensus_loss", consensus_loss.item(), t_env)
+            self.logger.log_stat("grad_norm", grad_norm, t_env)
+            self.log_stats_t = t_env
+
+    def calc_rl_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
+        print("batch size for rl: ", batch.batch_size)
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1] # [bs, ts, 1]
         actions = batch["actions"][:, :-1] # [bs, ts, n_agents, 1]
@@ -51,19 +79,11 @@ class MACLLearner:
 
         # Calculate estimated Q-Values
         mac_out = []
-        hidden_states = []
-        observations = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            if t < batch.max_seq_length - 1:
-                hidden_states.append(self.mac.hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim))
             agent_outs, agent_inputs = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
-            if t < batch.max_seq_length - 1:
-                observations.append(agent_inputs)
         mac_out = th.stack(mac_out, dim=1)  # [bs, ts+1, n_agents, n_actions]
-        hidden_states = th.stack(hidden_states, dim=1) # [bs, ts, n_agents, rnn_hidden_dim]
-        observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
 
         # Pick the Q-Values for the actions taken by each agent
         chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
@@ -109,6 +129,27 @@ class MACLLearner:
         # Normal L2 td_loss, take mean over actual data
         td_loss = (masked_td_error ** 2).sum() / mask.sum()
 
+        return td_loss
+
+    def calc_consensus_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
+        print("batch size for cl: ", batch.batch_size)
+        # Get the relevant quantities
+        terminated = batch["terminated"][:, :-1].float() # [bs, ts, 1]
+        mask = batch["filled"][:, :-1].float() # [bs, ts, 1]
+        mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+
+        hidden_states = []
+        observations = []
+        self.mac.init_hidden(batch.batch_size)
+        for t in range(batch.max_seq_length):
+            if t < batch.max_seq_length - 1:
+                hidden_states.append(self.mac.hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim))
+            agent_outs, agent_inputs = self.mac.forward(batch, t=t)
+            if t < batch.max_seq_length - 1:
+                observations.append(agent_inputs)
+        hidden_states = th.stack(hidden_states, dim=1) # [bs, ts, n_agents, rnn_hidden_dim]
+        observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
+
         # encode and project
         online_projection = self.cb.calc_student(observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
         online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts, n_agents, consensus_dim]
@@ -126,31 +167,7 @@ class MACLLearner:
 
         consensus_loss = (consensus_loss * consensus_mask).sum() / consensus_mask.sum()
 
-        loss = td_loss + self.args.consensus_loss_weight * consensus_loss
-
-        # Optimise
-        self.optimiser.zero_grad()
-        loss.backward()
-        grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
-        self.optimiser.step()
-
-        self.center = (self.args.center_tau * self.center + (1 - self.args.center_tau) * target_projection.mean(dim=0, keepdim=True)).detach()
-        self.cb.update_targets()
-
-        if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
-            self._update_targets()
-            self.last_target_update_episode = episode_num
-
-        if t_env - self.log_stats_t >= self.args.learner_log_interval:
-            self.logger.log_stat("loss", loss.item(), t_env)
-            self.logger.log_stat("td_loss", td_loss.item(), t_env)
-            self.logger.log_stat("consensus_loss", consensus_loss.item(), t_env)
-            self.logger.log_stat("grad_norm", grad_norm, t_env)
-            mask_elems = mask.sum().item()
-            self.logger.log_stat("td_error_abs", (masked_td_error.abs().sum().item()/mask_elems), t_env)
-            self.logger.log_stat("q_taken_mean", (chosen_action_qvals * mask).sum().item()/(mask_elems * self.args.n_agents), t_env)
-            self.logger.log_stat("target_mean", (targets * mask).sum().item()/(mask_elems * self.args.n_agents), t_env)
-            self.log_stats_t = t_env
+        return consensus_loss, online_projection, target_projection
 
     def _update_targets(self):
         self.target_mac.load_state(self.mac)
