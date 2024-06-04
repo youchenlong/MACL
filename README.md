@@ -40,6 +40,10 @@ python src/main.py --config=macl --env-config=foraging with env_args.max_food=4 
 python src/main.py --config=macl --env-config=pred_prey_punish with buffer_size=5000 batch_size=32 t_max=2050000
 ```
 ```shell
+# cooperative navigation
+python src/main.py --config=macl --env-config=mpe with env_args.map_name=simple_spread buffer_size=5000 batch_size=32 t_max=2050000
+```
+```shell
 python src/main.py --config=macl --env-config=sc2 with env_args.map_name=MMM2 buffer_size=5000 batch_size=32 t_max=2050000
 ```
 

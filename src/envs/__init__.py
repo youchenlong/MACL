@@ -5,7 +5,7 @@ from .stag_hunt import StagHunt
 # from .rware import RWAREEnv
 from .lbforaging import ForagingEnv
 # from .sisl import SislEnv
-# from .mpe import MPEEnv
+from .mpe import MPEEnv
 import sys
 import os
 
@@ -19,7 +19,7 @@ REGISTRY["stag_hunt"] = partial(env_fn, env=StagHunt)
 # REGISTRY["rware"] = partial(env_fn, env=RWAREEnv)
 REGISTRY["foraging"] = partial(env_fn, env=ForagingEnv)
 # REGISTRY["sisl"] = partial(env_fn, env=SislEnv)
-# REGISTRY["mpe"] = partial(env_fn, env=MPEEnv)
+REGISTRY["mpe"] = partial(env_fn, env=MPEEnv)
 if sys.platform == "linux":
     os.environ.setdefault("SC2PATH",
                           os.path.join(os.getcwd(), "3rdparty", "StarCraftII"))
