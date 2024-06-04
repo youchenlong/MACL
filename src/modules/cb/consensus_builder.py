@@ -1,6 +1,6 @@
+import copy
 import torch as th
 import torch.nn as nn
-from modules.agents.macl_agent import Encoder
 
 class ConsensusBuilder(nn.Module):
     def __init__(self, encoder, args, input_shape):
@@ -14,7 +14,7 @@ class ConsensusBuilder(nn.Module):
             nn.Linear(self.args.consensus_dim, self.args.consensus_dim)
         )
 
-        self.target_encoder = Encoder(input_shape, args.rnn_hidden_dim)
+        self.target_encoder = copy.deepcopy(encoder)
         self.target_projector = nn.Sequential(
             nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_dim),
             nn.ReLU(),
