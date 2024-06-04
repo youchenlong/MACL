@@ -68,7 +68,6 @@ class MACLLearner:
             self.log_stats_t = t_env
 
     def calc_rl_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        print("batch size for rl: ", batch.batch_size)
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1] # [bs, ts, 1]
         actions = batch["actions"][:, :-1] # [bs, ts, n_agents, 1]
@@ -132,7 +131,6 @@ class MACLLearner:
         return td_loss
 
     def calc_consensus_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        print("batch size for cl: ", batch.batch_size)
         # Get the relevant quantities
         terminated = batch["terminated"][:, :-1].float() # [bs, ts, 1]
         mask = batch["filled"][:, :-1].float() # [bs, ts, 1]
