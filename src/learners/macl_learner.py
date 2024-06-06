@@ -42,9 +42,10 @@ class MACLLearner:
 
     def train(self, batch: EpisodeBatch, batch_ssl: EpisodeBatch, t_env: int, episode_num: int):
         td_loss = self.calc_rl_loss(batch, t_env, episode_num)
-        consensus_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
+        consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
+        transition_loss = self.args.hidden_state_loss_weight * hidden_state_loss + self.args.reward_loss_weight * reward_loss
 
-        loss = td_loss + self.args.consensus_loss_weight * consensus_loss
+        loss = td_loss + transition_loss + self.args.consensus_loss_weight * consensus_loss
 
         # Optimise
         self.optimiser.zero_grad()
@@ -63,6 +64,8 @@ class MACLLearner:
             self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("td_loss", td_loss.item(), t_env)
             self.logger.log_stat("consensus_loss", consensus_loss.item(), t_env)
+            self.logger.log_stat("hidden_state_loss", hidden_state_loss.item(), t_env)
+            self.logger.log_stat("reward_loss", reward_loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm, t_env)
             self.log_stats_t = t_env
 
@@ -131,11 +134,14 @@ class MACLLearner:
 
     def calc_consensus_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
+        rewards = batch["reward"][:, :-1] # [bs, ts, 1]
         terminated = batch["terminated"][:, :-1].float() # [bs, ts, 1]
         mask = batch["filled"][:, :-1].float() # [bs, ts, 1]
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+        actions_onehot = batch["actions_onehot"][:, :-1] # [bs, ts, n_agents, n_actions]
 
         hidden_states = []
+        next_hidden_states = []
         observations = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
@@ -144,11 +150,13 @@ class MACLLearner:
             agent_outs, agent_inputs = self.mac.forward(batch, t=t)
             if t < batch.max_seq_length - 1:
                 observations.append(agent_inputs)
+                next_hidden_states.append(self.mac.hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim))
         hidden_states = th.stack(hidden_states, dim=1) # [bs, ts, n_agents, rnn_hidden_dim]
         observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
+        next_hidden_states = th.stack(next_hidden_states, dim=1) # [bs, ts, n_agents, rnn_hidden_dim]
 
         # encode and project
-        online_projection = self.cb.calc_student(observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
+        online_projection, predict_next_hidden_states, predict_rewards = self.cb.calc_student(observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim), actions_onehot.contiguous().view(-1, self.args.n_agents, self.args.n_actions))
         online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts, n_agents, consensus_dim]
         target_projection = self.cb.calc_teacher(observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
         center_target_projection = target_projection - self.center.detach() # [bs * ts * n_agents, consensus_dim]
@@ -164,7 +172,12 @@ class MACLLearner:
 
         consensus_loss = (consensus_loss * consensus_mask).sum() / consensus_mask.sum()
 
-        return consensus_loss, online_projection, target_projection
+        # transition model loss
+        _mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
+        hidden_state_loss = F.mse_loss(predict_next_hidden_states * _mask, next_hidden_states.view(-1, self.args.rnn_hidden_dim).clone().detach() * _mask)
+        reward_loss = ((predict_rewards.view(-1, self.args.n_agents, 1).mean(dim=1) - rewards.reshape(-1, 1).clone().detach()) * mask.view(-1, 1)).sum() / mask.sum()
+
+        return consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection
 
     def _update_targets(self):
         self.target_mac.load_state(self.mac)
