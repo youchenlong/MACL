@@ -30,9 +30,9 @@ softTemperature: 1
 isSoftmax: False
 
 consensus_dim: 8
-consensus_loss_weight: 0.1
-hidden_state_loss_weight: 0.1
-reward_loss_weight: 0.1
+consensus_loss_weight: 1
+hidden_state_loss_weight: 1
+reward_loss_weight: 1
 tau: 0.996
 center_tau: 0.9
 online_temp: 0.1
