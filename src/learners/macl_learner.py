@@ -82,7 +82,7 @@ class MACLLearner:
         mac_out = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            agent_outs, agent_inputs = self.mac.forward(batch, t=t)
+            agent_outs, _ = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # [bs, ts+1, n_agents, n_actions]
 
@@ -141,8 +141,8 @@ class MACLLearner:
         actions_onehot = batch["actions_onehot"][:, :-1] # [bs, ts, n_agents, n_actions]
 
         hidden_states = []
-        next_hidden_states = []
         observations = []
+        next_hidden_states = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
             if t < batch.max_seq_length - 1:
@@ -175,7 +175,7 @@ class MACLLearner:
         # transition model loss
         _mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
         hidden_state_loss = F.mse_loss(predict_next_hidden_states * _mask, next_hidden_states.view(-1, self.args.rnn_hidden_dim).clone().detach() * _mask)
-        reward_loss = ((predict_rewards.view(-1, self.args.n_agents, 1).mean(dim=1) - rewards.reshape(-1, 1).clone().detach()) * mask.view(-1, 1)).sum() / mask.sum()
+        reward_loss = F.mse_loss(predict_rewards * _mask.view(-1, 1), rewards.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach() * _mask.view(-1, 1))
 
         return consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection
 

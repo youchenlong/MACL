@@ -56,7 +56,7 @@ class ConsensusBuilder(nn.Module):
         return projection
 
     def parameters(self):
-        return list(self.online_encoder.parameters()) + list(self.online_projector.parameters())
+        return list(self.online_encoder.parameters()) + list(self.hidden_state_decoder.parameters()) + list(self.reward_decoder.parameters()) + list(self.online_projector.parameters())
 
     def update_targets(self):
         for param_o, param_t in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
@@ -67,9 +67,13 @@ class ConsensusBuilder(nn.Module):
     
     def save_models(self, path):
         th.save(self.online_encoder.state_dict(), "{}/online_encoder.th".format(path))
+        th.save(self.hidden_state_decoder.state_dict(), "{}/hidden_state_decoder.th".format(path))
+        th.save(self.reward_decoder.state_dict(), "{}/reward_decoder.th".format(path))
         th.save(self.online_projector.state_dict(), "{}/online_projector.th".format(path))
 
     def load_models(self, path):
         self.online_encoder.load_state_dict(th.load("{}/online_encoder.th".format(path), map_location=lambda storage, loc: storage))
+        self.hidden_state_decoder.load_state_dict(th.load("{}/hidden_state_decoder.th".format(path), map_location=lambda storage, loc: storage))
+        self.reward_decoder.load_state_dict(th.load("{}/reward_decoder.th".format(path), map_location=lambda storage, loc: storage))
         self.online_projector.load_state_dict(th.load("{}/online_projector.th".format(path), map_location=lambda storage, loc: storage))
 
