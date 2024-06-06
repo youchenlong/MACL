@@ -40,10 +40,9 @@ class MACLLearner:
 
         self.log_stats_t = -self.args.learner_log_interval - 1
 
-    def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        batch_size = batch.batch_size // 2
-        td_loss = self.calc_rl_loss(batch[:batch_size], t_env, episode_num)
-        consensus_loss, online_projection, target_projection = self.calc_consensus_loss(batch[batch_size:], t_env, episode_num)
+    def train(self, batch: EpisodeBatch, batch_ssl: EpisodeBatch, t_env: int, episode_num: int):
+        td_loss = self.calc_rl_loss(batch, t_env, episode_num)
+        consensus_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
 
         loss = td_loss + self.args.consensus_loss_weight * consensus_loss
 

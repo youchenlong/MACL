@@ -9,6 +9,7 @@ epsilon_anneal_time: 50000
 runner: "episode"
 
 buffer_size: 5000
+batch_size_ssl: 128
 
 # update the target network every {} episodes
 target_update_interval: 200
@@ -27,7 +28,7 @@ attn_dim: 16
 softTemperature: 1
 isSoftmax: False
 
-consensus_dim: 16
+consensus_dim: 8
 consensus_loss_weight: 0.1
 tau: 0.996
 center_tau: 0.9

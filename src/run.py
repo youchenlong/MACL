@@ -165,7 +165,24 @@ def run_sequential(args, logger):
         episode_batch = runner.run(test_mode=False)
         buffer.insert_episode_batch(episode_batch)
 
-        if buffer.can_sample(args.batch_size):
+        if args.name == "macl" and buffer.can_sample(max(args.batch_size, args.batch_size_ssl)):
+            # sample for RL
+            episode_sample = buffer.sample(args.batch_size)
+            max_ep_t = episode_sample.max_t_filled()
+            episode_sample = episode_sample[:, :max_ep_t]
+            if episode_sample.device != args.device:
+                episode_sample.to(args.device)
+
+            # sample for SSL
+            episode_sample_ssl = buffer.sample(args.batch_size_ssl)
+            max_ep_t_ssl = episode_sample_ssl.max_t_filled()
+            episode_sample_ssl = episode_sample_ssl[:, :max_ep_t_ssl]
+            if episode_sample_ssl.device != args.device:
+                episode_sample_ssl.to(args.device)
+            
+            learner.train(episode_sample, episode_sample_ssl, runner.t_env, episode)
+
+        elif args.name != "macl" and buffer.can_sample(args.batch_size):
             episode_sample = buffer.sample(args.batch_size)
 
             # Truncate batch to only filled timesteps
