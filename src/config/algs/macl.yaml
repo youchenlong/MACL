@@ -28,7 +28,7 @@ attn_dim: 16
 softTemperature: 1
 isSoftmax: False
 
-consensus_dim: 8
+consensus_dim: 4
 consensus_loss_weight: 1
 hidden_state_loss_weight: 1
 reward_loss_weight: 1

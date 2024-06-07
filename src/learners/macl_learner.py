@@ -165,9 +165,8 @@ class MACLLearner:
         # consensus loss
         consensus_loss = - th.bmm(F.softmax(center_target_projection, dim=-1).detach(), th.log_softmax(online_projection, dim=-1).transpose(1, 2)) # [bs * ts, n_agents, n_agents]
 
-        # mask out self and filled data
+        # mask out filled data
         consensus_mask = th.ones_like(consensus_loss, device=consensus_loss.device)  # [bs * ts, n_agents, n_agents]
-        consensus_mask = consensus_mask - th.eye(self.args.n_agents, device=consensus_loss.device).unsqueeze(0)  # [bs * ts, n_agents, n_agents]
         consensus_mask = consensus_mask * mask.unsqueeze(3).expand(-1, -1, self.args.n_agents, self.args.n_agents).reshape(-1, self.args.n_agents, self.args.n_agents)  # [bs * ts, n_agents, n_agents]
 
         consensus_loss = (consensus_loss * consensus_mask).sum() / consensus_mask.sum()
