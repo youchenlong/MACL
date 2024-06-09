@@ -53,7 +53,7 @@ class MACLLearner:
         grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
         self.optimiser.step()
 
-        self.cb.update_targets()
+        self.cb.update_targets(t_env)
 
         if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
             self._update_targets()
@@ -67,10 +67,10 @@ class MACLLearner:
             self.logger.log_stat("reward_loss", reward_loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm, t_env)
 
-            self.logger.log_scalar("hidden_states", hidden_states[-1].tolist())
+            # self.logger.log_scalar("hidden_states", hidden_states[-1].tolist())
             self.logger.log_scalar("online_representation", prediction[-1].tolist())
             self.logger.log_scalar("target_representation", target_projection[-1].tolist())
-            self.logger.log_scalar("mean_hidden_state", hidden_states.mean(dim=0).tolist())
+            # self.logger.log_scalar("mean_hidden_state", hidden_states.mean(dim=0).tolist())
             self.logger.log_scalar("mean_online_representation", prediction.mean(dim=0).tolist())
             self.logger.log_scalar("mean_target_representation", target_projection.mean(dim=0).tolist())
 

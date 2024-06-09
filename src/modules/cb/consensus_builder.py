@@ -1,6 +1,7 @@
 import copy
 import torch as th
 import torch.nn as nn
+from components.epsilon_schedules import LinearSchedule
 
 class ConsensusBuilder(nn.Module):
     def __init__(self, encoder, args, input_shape):
@@ -42,6 +43,10 @@ class ConsensusBuilder(nn.Module):
             nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
         )
 
+        # tau increase with training steps
+        self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.t_max, decay="linear")
+        self.tau = self.schedule.eval(0)
+
     def calc_student(self, inputs, hidden_states, actions):
         """
         inputs: [bs * ts, n_agents, input_shape]
@@ -68,12 +73,13 @@ class ConsensusBuilder(nn.Module):
     def parameters(self):
         return list(self.online_encoder.parameters()) + list(self.hidden_state_decoder.parameters()) + list(self.reward_decoder.parameters()) + list(self.online_projector.parameters()) + list(self.predictor.parameters())
 
-    def update_targets(self):
+    def update_targets(self, t_env):
+        self.tau = self.schedule.eval(t_env)
         for param_o, param_t in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
-            param_t.data = param_t.data * self.args.tau + param_o.data * (1. - self.args.tau)
+            param_t.data = param_t.data * self.tau + param_o.data * (1. - self.tau)
 
         for param_o, param_t in zip(self.online_projector.parameters(), self.target_projector.parameters()):   
-            param_t.data = param_t.data * self.args.tau + param_o.data * (1. - self.args.tau)
+            param_t.data = param_t.data * self.tau + param_o.data * (1. - self.tau)
     
     def save_models(self, path):
         th.save(self.online_encoder.state_dict(), "{}/online_encoder.th".format(path))

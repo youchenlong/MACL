@@ -28,7 +28,8 @@ consensus_hidden_dim: 16
 consensus_loss_weight: 1
 hidden_state_loss_weight: 1
 reward_loss_weight: 1
-tau: 0.99
+tau_start: 0.99
+tau_finish: 1.0
 
 mac: "macl_mac"
 agent: "macl"
