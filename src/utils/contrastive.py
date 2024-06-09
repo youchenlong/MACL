@@ -1,35 +1,31 @@
 import torch as th
+import torch.nn as nn
+import torch.nn.functional as F
 
-def infoNCE_loss(features, positive_mask, contrasTemperature, batch_size=512):
-    """
-    features: [bs, feature_dim]
-    positive_mask: [bs, bs]
-    \begin{equation*}
-        \begin{aligned}
-            -\log\frac{exp(g(q, k_+))}{\sum_{i=1}^{k}exp(g(q, k_i))}
-        \end{aligned}
-    \end{equation*}
-    """
-    bs, feature_dim = features.size()
-    total_loss = 0
-    n_batchs = (bs + batch_size - 1) // batch_size
-    for i in range(n_batchs):
-        start = i * batch_size
-        end = min(start + batch_size, bs)
-        features_batch = features[start:end]
-        positive_mask_batch = positive_mask[start:end]
-        # similarity matrix
-        sim_matrix = th.matmul(features_batch, features.T) / contrasTemperature
-        # Stability trick: Subtract the maximum value for numerical stability
-        logits_max, _ = th.max(sim_matrix, dim=1, keepdim=True)
-        logits = sim_matrix - logits_max.detach()
-        # negative logits
-        exp_logits = th.exp(logits)
-        exp_sum = exp_logits.sum(1, keepdim=True) - exp_logits * positive_mask_batch
-        # positive logits
-        log_prob = logits - th.log(exp_sum)
-        # mask out the negative samples
-        log_prob_pos = (positive_mask_batch * log_prob).sum(1) / positive_mask_batch.sum(1)
-        total_loss += -log_prob_pos.mean()
-    total_loss /= n_batchs
-    return total_loss
+class ContrastiveLoss(nn.Module):
+    def __init__(self, batch_size, device='cuda', temperature=0.1):
+        super(ContrastiveLoss, self).__init__()
+        self.batch_size = batch_size
+        self.device = device
+        self.temperature = th.tensor(temperature, device=device)
+        self.negative_mask = (~th.eye(batch_size * 2, batch_size * 2, dtype=bool, device=device)).float()
+
+    def forward(self, emb_i, emb_j):
+        """
+        emb_i: [bs, feature_dim]
+        emb_j: [bs, feature_dim]
+        """     
+        # z_i = F.normalize(emb_i, dim=1)
+        # z_j = F.normalize(emb_j, dim=1)
+        z_i = emb_i
+        z_j = emb_j
+        representations = th.cat([z_i, z_j], dim=0) # [2 * bs, feature_dim]
+        similarity_matrix = F.cosine_similarity(representations.unsqueeze(1), representations.unsqueeze(0), dim=2) # [2 * bs, 2 * bs]
+        sim_ij = th.diag(similarity_matrix, self.batch_size) # [bs]
+        sim_ji = th.diag(similarity_matrix, -self.batch_size) # [bs]
+        positives = th.cat([sim_ij, sim_ji], dim=0) # [2 * bs]
+        nominator = th.exp(positives / self.temperature) # [2 * bs]
+        denominator = th.exp(similarity_matrix / self.temperature) * self.negative_mask # [2 * bs, 2 * bs]
+        loss_partial = -th.log(nominator / th.sum(denominator, dim=1)) # [2 * bs]
+        loss = th.sum(loss_partial) / (2 * self.batch_size)
+        return loss
