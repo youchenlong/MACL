@@ -25,8 +25,12 @@ class ContrastiveLoss(nn.Module):
         sim_ij = th.diag(similarity_matrix, self.batch_size) # [bs]
         sim_ji = th.diag(similarity_matrix, -self.batch_size) # [bs]
         positives = th.cat([sim_ij, sim_ji], dim=0) # [2 * bs]
-        nominator = th.exp(positives / self.temperature) # [2 * bs]
-        denominator = th.exp(similarity_matrix / self.temperature) * self.negative_mask # [2 * bs, 2 * bs]
-        loss_partial = -th.log(nominator / th.sum(denominator, dim=1)) # [2 * bs]
+
+        # nominator = th.exp(positives / self.temperature) # [2 * bs]
+        # denominator = th.exp(similarity_matrix / self.temperature) * self.negative_mask # [2 * bs, 2 * bs]
+        # loss_partial = -th.log(nominator / th.sum(denominator, dim=1)) # [2 * bs]
+
+        # TODO: mask out the diagonal
+        loss_partial = -th.log(th.exp(positives / self.temperature)) + th.logsumexp(similarity_matrix / self.temperature, dim=1) # [2 * bs]
         loss = th.sum(loss_partial) / (2 * self.batch_size)
         return loss

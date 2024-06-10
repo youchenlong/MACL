@@ -24,26 +24,25 @@ class ConsensusBuilder(nn.Module):
         )
         # nonlinear projector
         self.online_projector = nn.Sequential(
-            nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_hidden_dim),
+            nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_dim * 4),
             nn.ReLU(),
-            nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
+            nn.Linear(self.args.consensus_dim * 4, self.args.consensus_dim)
         )
         # predictor is similar to projector
         self.predictor = nn.Sequential(
-            nn.Linear(self.args.consensus_dim, self.args.consensus_hidden_dim), 
+            nn.Linear(self.args.consensus_dim, self.args.consensus_dim * 4), 
             nn.ReLU(), 
-            nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
+            nn.Linear(self.args.consensus_dim * 4, self.args.consensus_dim)
         )
 
         # similar to online encoder and online projector, but update without gradient
         self.target_encoder = copy.deepcopy(encoder)
         self.target_projector = nn.Sequential(
-            nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_hidden_dim),
+            nn.Linear(self.args.rnn_hidden_dim, self.args.consensus_dim * 4),
             nn.ReLU(),
-            nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
+            nn.Linear(self.args.consensus_dim * 4, self.args.consensus_dim)
         )
 
-        # self.tau = args.tau
         # tau increase with training steps
         self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.t_max, decay="linear")
         self.tau = self.schedule.eval(0)
