@@ -175,12 +175,9 @@ class MACLLearner:
         target_projection = self.cb.calc_teacher(next_observations.view(-1, self.args.n_agents, self.mac.agent.input_shape), next_hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, consensus_dim]
 
         # consensus loss
-        bs = batch.batch_size
-        ts = batch.max_seq_length - 1
-        prediction = prediction.reshape(bs, ts, self.args.n_agents * self.args.consensus_dim)
-        target_projection = target_projection.reshape(bs, ts, self.args.n_agents * self.args.consensus_dim)
-        consensus_mask = mask.reshape(bs, ts, 1) # [bs, ts, 1]
-        consensus_loss = self.calc_contrastive_loss(prediction * consensus_mask, (target_projection * consensus_mask).detach())
+        consensus_mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
+        # consensus_loss = F.cosine_similarity(consensus_mask * prediction, consensus_mask * target_projection.detach(), dim=-1).mean()
+        consensus_loss = F.mse_loss(consensus_mask * prediction, consensus_mask * target_projection.detach())
 
         # transition loss
         transition_mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
@@ -189,7 +186,7 @@ class MACLLearner:
         true_rewards = rewards.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach() # [bs * ts * n_agents, 1]
         reward_loss = ((predict_rewards - true_rewards)**2 * transition_mask).sum() / transition_mask.sum()
 
-        return consensus_loss, hidden_state_loss, reward_loss, prediction.view(bs * ts, self.args.n_agents, self.args.consensus_dim), target_projection.view(bs * ts, self.args.n_agents, self.args.consensus_dim), hidden_states.view(bs * ts, self.args.n_agents, self.args.rnn_hidden_dim)
+        return consensus_loss, hidden_state_loss, reward_loss, prediction.view(-1, self.args.n_agents, self.args.consensus_dim), target_projection.view(-1, self.args.n_agents, self.args.consensus_dim), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)
 
     def calc_contrastive_loss(self, prediction, target_projection):
         bs, ts, _ = prediction.shape
