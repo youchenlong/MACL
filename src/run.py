@@ -157,53 +157,60 @@ def run_sequential(args, logger):
     start_time = time.time()
     last_time = start_time
 
-    logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))
+    if args.name == "macl":
+        logger.console_logger.info("Beginning self-supervised learning for {} timesteps".format(args.t_max_ssl))
+        args.t_max = args.t_max_ssl + args.t_max
 
-    while runner.t_env <= args.t_max:
-
-        # Run for a whole episode at a time
+    # self-supervise learning
+    while args.name == "macl" and runner.t_env <= args.t_max_ssl:
         episode_batch = runner.run(test_mode=False)
         buffer.insert_episode_batch(episode_batch)
 
-        if args.name == "macl" and buffer.can_sample(max(args.batch_size, args.batch_size_ssl)):
-            # sample for RL
-            episode_sample = buffer.sample(args.batch_size)
-            max_ep_t = episode_sample.max_t_filled()
-            episode_sample = episode_sample[:, :max_ep_t]
-            if episode_sample.device != args.device:
-                episode_sample.to(args.device)
-
-            # sample for SSL
+        if buffer.can_sample(args.batch_size_ssl):
             episode_sample_ssl = buffer.sample(args.batch_size_ssl)
             max_ep_t_ssl = episode_sample_ssl.max_t_filled()
             episode_sample_ssl = episode_sample_ssl[:, :max_ep_t_ssl]
             if episode_sample_ssl.device != args.device:
                 episode_sample_ssl.to(args.device)
             
-            learner.train(episode_sample, episode_sample_ssl, runner.t_env, episode)
+            learner.train_ssl(episode_sample_ssl, runner.t_env)
 
-        elif args.name != "macl" and buffer.can_sample(args.batch_size):
+        if (runner.t_env - last_test_T) / args.test_interval >= 1.0:
+
+            logger.console_logger.info("self-supervised learning, t_env: {} / {}".format(runner.t_env, args.t_max_ssl))
+            logger.console_logger.info("Estimated time left: {}. Time passed: {}".format(
+                time_left(last_time, last_test_T, runner.t_env, args.t_max_ssl), time_str(time.time() - start_time)))
+            last_time = time.time()
+            last_test_T = runner.t_env
+
+    logger.console_logger.info("Beginning policy learning for {} timesteps".format(args.t_max - args.t_max_ssl))
+
+    # policy learning
+    while runner.t_env <= args.t_max:
+
+        # Run for a whole episode at a time
+        episode_batch = runner.run(test_mode=False)
+        buffer.insert_episode_batch(episode_batch)
+
+        if buffer.can_sample(args.batch_size):
             episode_sample = buffer.sample(args.batch_size)
-
-            # Truncate batch to only filled timesteps
             max_ep_t = episode_sample.max_t_filled()
             episode_sample = episode_sample[:, :max_ep_t]
-
             if episode_sample.device != args.device:
                 episode_sample.to(args.device)
-
+            
             learner.train(episode_sample, runner.t_env, episode)
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0:
 
-            logger.console_logger.info("t_env: {} / {}".format(runner.t_env, args.t_max))
+            logger.console_logger.info("policy learning, t_env: {} / {}".format(runner.t_env, args.t_max))
             logger.console_logger.info("Estimated time left: {}. Time passed: {}".format(
                 time_left(last_time, last_test_T, runner.t_env, args.t_max), time_str(time.time() - start_time)))
             last_time = time.time()
-
             last_test_T = runner.t_env
+
             for _ in range(n_test_runs):
                 runner.run(test_mode=True)
 

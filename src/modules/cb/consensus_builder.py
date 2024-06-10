@@ -43,6 +43,7 @@ class ConsensusBuilder(nn.Module):
             nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
         )
 
+        # self.tau = args.tau
         # tau increase with training steps
         self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.t_max, decay="linear")
         self.tau = self.schedule.eval(0)

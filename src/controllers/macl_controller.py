@@ -13,6 +13,7 @@ class MACLMAC:
         self.agent_output_type = args.agent_output_type
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
+        self.action_selector_ssl = action_REGISTRY[args.action_selector_ssl](args)
 
         self.hidden_states = None
 
@@ -20,7 +21,15 @@ class MACLMAC:
         # Only select actions for the selected batch elements in bs
         avail_actions = ep_batch["avail_actions"][:, t_ep]
         agent_outputs, agent_inputs = self.forward(ep_batch, t_ep, test_mode=test_mode)
-        chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
+        # evaluate
+        if self.args.evaluate:
+            chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
+        # self-supervised learning
+        elif t_env < self.args.t_max_ssl:
+            chosen_actions = self.action_selector_ssl.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
+        # policy learning
+        else:
+            chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env - self.args.t_max_ssl, test_mode=test_mode)
         return chosen_actions
 
     def forward(self, ep_batch, t, test_mode=False):

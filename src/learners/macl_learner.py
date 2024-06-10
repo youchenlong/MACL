@@ -17,11 +17,10 @@ class MACLLearner:
         self.logger = logger
 
         self.cb = ConsensusBuilder(mac.agent.encoder, args, mac.agent.input_shape)
+        self.cb_params = list(self.cb.parameters())
+        self.cb_optimiser = RMSprop(params=self.cb_params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
-        self.params = list(self.mac.parameters()) + list(self.cb.parameters())
-
-        self.last_target_update_episode = 0
-
+        self.params = list(self.mac.parameters())
         self.mixer = None
         if args.mixer is not None:
             if args.mixer == "vdn":
@@ -32,40 +31,34 @@ class MACLLearner:
                 raise ValueError("Mixer {} not recognised.".format(args.mixer))
             self.params += list(self.mixer.parameters())
             self.target_mixer = copy.deepcopy(self.mixer)
-
         self.optimiser = RMSprop(params=self.params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
         # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
         self.target_mac = copy.deepcopy(mac)
 
+        self.log_stats_t_ssl = -self.args.learner_log_interval - 1
+        self.last_target_update_episode = 0
         self.log_stats_t = -self.args.learner_log_interval - 1
 
-    def train(self, batch: EpisodeBatch, batch_ssl: EpisodeBatch, t_env: int, episode_num: int):
-        td_loss = self.calc_rl_loss(batch, t_env, episode_num)
-        consensus_loss, hidden_state_loss, reward_loss, prediction, target_projection, hidden_states = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
+
+    def train_ssl(self, batch_ssl: EpisodeBatch, t_env: int):
+        consensus_loss, hidden_state_loss, reward_loss, prediction, target_projection, hidden_states = self.calc_consensus_loss(batch_ssl)
         transition_loss = self.args.hidden_state_loss_weight * hidden_state_loss + self.args.reward_loss_weight * reward_loss
-
-        loss = td_loss + transition_loss + self.args.consensus_loss_weight * consensus_loss
-
+        loss = transition_loss + consensus_loss
+        
         # Optimise
-        self.optimiser.zero_grad()
+        self.cb_optimiser.zero_grad()
         loss.backward()
-        grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
-        self.optimiser.step()
+        grad_norm = th.nn.utils.clip_grad_norm_(self.cb_params, self.args.grad_norm_clip)
+        self.cb_optimiser.step()
 
         self.cb.update_targets(t_env)
 
-        if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
-            self._update_targets()
-            self.last_target_update_episode = episode_num
+        if t_env - self.log_stats_t_ssl >= self.args.learner_log_interval:
 
-        if t_env - self.log_stats_t >= self.args.learner_log_interval:
-            self.logger.log_stat("loss", loss.item(), t_env)
-            self.logger.log_stat("td_loss", td_loss.item(), t_env)
             self.logger.log_stat("consensus_loss", consensus_loss.item(), t_env)
             self.logger.log_stat("hidden_state_loss", hidden_state_loss.item(), t_env)
             self.logger.log_stat("reward_loss", reward_loss.item(), t_env)
-            self.logger.log_stat("grad_norm", grad_norm, t_env)
 
             # self.logger.log_scalar("hidden_states", hidden_states[-1].tolist())
             self.logger.log_scalar("online_representation", prediction[-1].tolist())
@@ -74,9 +67,30 @@ class MACLLearner:
             self.logger.log_scalar("mean_online_representation", prediction.mean(dim=0).tolist())
             self.logger.log_scalar("mean_target_representation", target_projection.mean(dim=0).tolist())
 
+            self.log_stats_t_ssl = t_env
+
+
+    def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
+        loss = self.calc_rl_loss(batch)
+
+        # Optimise
+        self.optimiser.zero_grad()
+        loss.backward()
+        grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
+        self.optimiser.step()
+
+        if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
+            self._update_targets()
+            self.last_target_update_episode = episode_num
+
+        if t_env - self.log_stats_t >= self.args.learner_log_interval:
+            self.logger.log_stat("td loss", loss.item(), t_env)
+            self.logger.log_stat("grad_norm", grad_norm, t_env)
+
             self.log_stats_t = t_env
 
-    def calc_rl_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
+
+    def calc_rl_loss(self, batch: EpisodeBatch):
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1] # [bs, ts, 1]
         actions = batch["actions"][:, :-1] # [bs, ts, n_agents, 1]
@@ -139,7 +153,8 @@ class MACLLearner:
 
         return td_loss
 
-    def calc_consensus_loss(self, batch: EpisodeBatch, t_env: int, episode_num: int):
+
+    def calc_consensus_loss(self, batch: EpisodeBatch):
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1] # [bs, ts, 1]
         terminated = batch["terminated"][:, :-1].float() # [bs, ts, 1]
@@ -207,6 +222,7 @@ class MACLLearner:
             self.target_mixer.load_state_dict(self.mixer.state_dict())
         self.logger.console_logger.info("Updated target network")
 
+
     def cuda(self):
         self.mac.cuda()
         self.cb.cuda()
@@ -215,16 +231,16 @@ class MACLLearner:
             self.mixer.cuda()
             self.target_mixer.cuda()
 
+
     def save_models(self, path):
         self.mac.save_models(path)
-        self.cb.save_models(path)
         if self.mixer is not None:
             th.save(self.mixer.state_dict(), "{}/mixer.th".format(path))
         th.save(self.optimiser.state_dict(), "{}/opt.th".format(path))
 
+
     def load_models(self, path):
         self.mac.load_models(path)
-        self.cb.load_models(path)
         # Not quite right but I don't want to save target networks
         self.target_mac.load_models(path)
         if self.mixer is not None:

@@ -2,6 +2,7 @@
 
 # use epsilon greedy action selector
 action_selector: "epsilon_greedy"
+action_selector_ssl: "random"
 epsilon_start: 1.0
 epsilon_finish: 0.05
 epsilon_anneal_time: 50000
@@ -10,6 +11,7 @@ runner: "episode"
 
 buffer_size: 5000
 batch_size_ssl: 128
+t_max_ssl: 550000
 
 # update the target network every {} episodes
 target_update_interval: 200
@@ -28,6 +30,7 @@ consensus_hidden_dim: 16
 consensus_loss_weight: 1
 hidden_state_loss_weight: 1
 reward_loss_weight: 1
+# tau: 0.996
 tau_start: 0.99
 tau_finish: 1.0
 

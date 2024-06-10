@@ -20,7 +20,8 @@ class ContrastiveLoss(nn.Module):
         z_i = emb_i
         z_j = emb_j
         representations = th.cat([z_i, z_j], dim=0) # [2 * bs, feature_dim]
-        similarity_matrix = F.cosine_similarity(representations.unsqueeze(1), representations.unsqueeze(0), dim=2) # [2 * bs, 2 * bs]
+        # similarity_matrix = F.cosine_similarity(representations.unsqueeze(1), representations.unsqueeze(0), dim=2) # [2 * bs, 2 * bs]
+        similarity_matrix = F.mse_loss(representations.unsqueeze(1), representations.unsqueeze(0), reduction='none').mean(dim=-1) # [2 * bs, 2 * bs]
         sim_ij = th.diag(similarity_matrix, self.batch_size) # [bs]
         sim_ji = th.diag(similarity_matrix, -self.batch_size) # [bs]
         positives = th.cat([sim_ij, sim_ji], dim=0) # [2 * bs]

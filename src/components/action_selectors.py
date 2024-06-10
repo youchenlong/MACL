@@ -63,3 +63,14 @@ class EpsilonGreedyActionSelector():
 
 
 REGISTRY["epsilon_greedy"] = EpsilonGreedyActionSelector
+
+
+class RandomActionSelector():
+
+    def __init__(self, args):
+        self.args = args
+
+    def select_action(self, agent_inputs, avail_actions, t_env, test_mode=False):
+        return Categorical(avail_actions.float()).sample().long()
+
+REGISTRY["random"] = RandomActionSelector
