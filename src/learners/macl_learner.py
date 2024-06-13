@@ -53,7 +53,8 @@ class MACLLearner:
         grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
         self.optimiser.step()
 
-        self.cb.update_targets()
+        # EMA
+        self.cb.update_targets(t_env)
 
         if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
             self._update_targets()
@@ -67,10 +68,10 @@ class MACLLearner:
             self.logger.log_stat("reward_loss", reward_loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm, t_env)
 
-            self.logger.log_scalar("hidden_states", hidden_states[-1].tolist())
+            # self.logger.log_scalar("hidden_states", hidden_states[-1].tolist())
             self.logger.log_scalar("online_representation", prediction[-1].tolist())
             self.logger.log_scalar("target_representation", target_projection[-1].tolist())
-            self.logger.log_scalar("mean_hidden_state", hidden_states.mean(dim=0).tolist())
+            # self.logger.log_scalar("mean_hidden_state", hidden_states.mean(dim=0).tolist())
             self.logger.log_scalar("mean_online_representation", prediction.mean(dim=0).tolist())
             self.logger.log_scalar("mean_target_representation", target_projection.mean(dim=0).tolist())
 
@@ -176,7 +177,7 @@ class MACLLearner:
 
         # consensus loss
         consensus_mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
-        # consensus_loss = F.cosine_similarity(consensus_mask * prediction, consensus_mask * target_projection.detach(), dim=-1).mean()
+        # consensus_loss = - F.cosine_similarity(consensus_mask * prediction, consensus_mask * target_projection.detach(), dim=-1).mean()
         consensus_loss = F.mse_loss(consensus_mask * prediction, consensus_mask * target_projection.detach())
 
         # transition loss
@@ -188,14 +189,14 @@ class MACLLearner:
 
         return consensus_loss, hidden_state_loss, reward_loss, prediction.view(-1, self.args.n_agents, self.args.consensus_dim), target_projection.view(-1, self.args.n_agents, self.args.consensus_dim), hidden_states.view(-1, self.args.n_agents, self.args.rnn_hidden_dim)
 
-    def calc_contrastive_loss(self, prediction, target_projection):
-        bs, ts, _ = prediction.shape
-        contrastive_loss = th.tensor(0.0).cuda()
-        loss_func = ContrastiveLoss(ts)
-        # cost more time, but do not need large cuda memory for similarity matrix
-        for emb_i, emb_j in zip(prediction, target_projection):
-            contrastive_loss += loss_func(emb_i, emb_j)
-        return contrastive_loss / bs
+    # def calc_contrastive_loss(self, prediction, target_projection):
+    #     bs, ts, _ = prediction.shape
+    #     contrastive_loss = th.tensor(0.0).cuda()
+    #     loss_func = ContrastiveLoss(ts)
+    #     # cost more time, but do not need large cuda memory for similarity matrix
+    #     for emb_i, emb_j in zip(prediction, target_projection):
+    #         contrastive_loss += loss_func(emb_i, emb_j)
+    #     return contrastive_loss / bs
 
 
     def _update_targets(self):
