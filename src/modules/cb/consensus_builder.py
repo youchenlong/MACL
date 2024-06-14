@@ -28,12 +28,13 @@ class ConsensusBuilder(nn.Module):
             nn.ReLU(),
             nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
         )
-        # predictor is similar to projector
+        # predictor
         # self.predictor = nn.Sequential(
         #     nn.Linear(self.args.consensus_dim, self.args.consensus_hidden_dim), 
         #     nn.ReLU(), 
         #     nn.Linear(self.args.consensus_hidden_dim, self.args.consensus_dim)
         # )
+        # self.predictor = nn.Linear(self.args.consensus_dim, self.args.consensus_dim)
 
         # similar to online encoder and online projector, but update without gradient
         self.target_encoder = copy.deepcopy(encoder)
@@ -45,7 +46,7 @@ class ConsensusBuilder(nn.Module):
 
         # self.tau = self.args.tau
         # tau increase with training steps
-        self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.t_max)
+        self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.tau_anneal_time)
         self.tau = self.schedule.eval(0)
 
 

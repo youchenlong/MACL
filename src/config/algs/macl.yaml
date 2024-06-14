@@ -29,8 +29,9 @@ consensus_loss_weight: 1
 hidden_state_loss_weight: 1
 reward_loss_weight: 1
 # tau: 0.996
-tau_start: 0.99
-tau_finish: 1.0
+tau_start: 0.05
+tau_finish: 0.99
+tau_anneal_time: 50000
 
 mac: "macl_mac"
 agent: "macl"

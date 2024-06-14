@@ -177,8 +177,8 @@ class MACLLearner:
 
         # consensus loss
         consensus_mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
-        # consensus_loss = - F.cosine_similarity(consensus_mask * prediction, consensus_mask * target_projection.detach(), dim=-1).mean()
-        consensus_loss = F.mse_loss(consensus_mask * prediction, consensus_mask * target_projection.detach())
+        consensus_loss = - F.cosine_similarity(consensus_mask * prediction, consensus_mask * target_projection.detach(), dim=-1).mean()
+        # consensus_loss = F.mse_loss(consensus_mask * prediction, consensus_mask * target_projection.detach())
 
         # transition loss
         transition_mask = mask.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1) # [bs * ts * n_agents, 1]
