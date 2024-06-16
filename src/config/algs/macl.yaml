@@ -37,8 +37,10 @@ tau_start: 0.05
 tau_finish: 0.99
 tau_anneal_time: 50000
 center_tau: 1.0
-online_temp: 0.1
-target_temp: 0.04
+# online_temp: 0.1
+# target_temp: 0.04
+online_temp: 1.0
+target_temp: 1.0
 
 
 mac: "macl_mac"
