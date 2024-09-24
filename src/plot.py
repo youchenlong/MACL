@@ -13,15 +13,15 @@ def plot(filename):
         metric = [item["value"] for item in data["test_return_mean"]]
     else:
         metric = data["test_battle_won_mean"]
-
+    print(metric)
     plt.plot(metric)
     plt.show()
 
 def main():
     dir_name = os.path.join(os.getcwd(), "results/sacred")
     alg_name = "macl"
-    map_name = "lbf"
-    t = "1"
+    map_name = "5m_vs_6m"
+    t = "3"
     filename = os.path.join(dir_name, alg_name, map_name, t, "info.json")
 
     plot(filename)

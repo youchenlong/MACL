@@ -39,28 +39,46 @@ class ConsensusBuilder(nn.Module):
 
         self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.tau_anneal_time)
         self.tau = self.schedule.eval(0)
-
+    
     def calc_student(self, inputs, hidden_states, actions):
         """
-        inputs: [bs * ts, n_agents, input_shape]
-        hidden_states: [bs * ts, n_agents, rnn_hidden_dim]
-        action: [bs * ts, n_agents, n_actions]
+        inputs: [bs, ts, n_agents, input_shape]
+        hidden_states: [bs, ts, n_agents, rnn_hidden_dim]
+        action: [bs, ts, n_agents, n_actions]
         """
-        representation = self.online_encoder(inputs.view(-1, self.input_shape), hidden_states) # [bs * ts * n_agents, rnn_hidden_dim]
-        predict_representation = self.hidden_state_decoder(th.cat([representation, actions.view(-1, self.args.n_actions)], dim=-1)) # [bs * ts * n_agents, rnn_hidden_dim]   
-        predict_reward = self.reward_decoder(th.cat([representation, actions.view(-1, self.args.n_actions)], dim=-1)) # [bs * ts * n_agents, 1]
-        projection = self.online_projector(predict_representation) # [bs * ts * n_agents, consensus_dim]
+
+        # print('input size: ', inputs.size())
+        representation = self.online_encoder(inputs[:, :-self.args.pred_len, :, :].reshape(-1, self.input_shape), hidden_states[:, :-self.args.pred_len, :, :].reshape(-1, self.args.rnn_hidden_dim))
+        predict_representation = representation # [bs * ts - k * n_agents, rnn_hidden_dim]
+        for t in range(self.args.pred_len):
+            # print('predict_representation size: ', predict_representation.size())
+            # print('actions size: ', actions.size())
+            predict_reward = self.reward_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.n_actions)], dim=-1)) # [bs * ts - k * n_agents, 1]
+            predict_representation = self.hidden_state_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.n_actions)], dim=-1)) # [bs * ts - k * n_agents, rnn_hidden_dim]
+        projection = self.online_projector(predict_representation) # [bs * ts - k * n_agents, consensus_dim]
         return projection, predict_representation, predict_reward
 
-
+        # representation = self.online_encoder(inputs, hidden_states) # [bs, ts, n_agents, rnn_hidden_dim]
+        # predict_representation = representation[:, :-self.args.pred_len] # [bs, ts-k, n_agents, rnn_hidden_dim]
+        # for t in range(self.args.pred_len): 
+        #     predict_reward = self.reward_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len]], dim=-1)) # [bs, ts-k, n_agents, 1]
+        #     predict_representation = self.hidden_state_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len]], dim=-1)) # bs, ts-k, n_agents, rnn_hidden_dim]
+        # projection = self.online_projector(predict_representation) # [bs, ts-k, n_agents, consensus_dim]
+        # return projection, predict_representation, predict_reward
+    
     def calc_teacher(self, inputs, hidden_states):
         """
-        inputs: [bs * ts, n_agents, input_shape]
-        hidden_states: [bs * ts, n_agents, rnn_hidden_dim]
+        inputs: [bs, ts, n_agents, input_shape]
+        hidden_states: [bs, ts, n_agents, rnn_hidden_dim]
         """
-        representation = self.target_encoder(inputs.view(-1, self.input_shape), hidden_states) # [bs * ts * n_agents, rnn_hidden_dim]
-        projection = self.target_projector(representation)
+
+        representation = self.target_encoder(inputs[:, self.args.pred_len:, :, :].reshape(-1, self.input_shape), hidden_states[:, self.args.pred_len:, :, :].reshape(-1, self.args.rnn_hidden_dim)) # [bs * ts - k * n_agents, rnn_hidden_dim]
+        projection = self.target_projector(representation) # [bs * ts - k * n_agents, consensus_dim]
         return projection
+
+        # representation = self.target_encoder(inputs[:, self.args.pred_len:], hidden_states[:, self.args.pred_len:]) # [bs, ts-k, n_agents, rnn_hidden_dim]
+        # projection = self.target_projector(representation) # [bs, ts-k, n_agents, consensus_dim]
+        # return projection
 
     def parameters(self):
         return list(self.online_encoder.parameters()) + list(self.hidden_state_decoder.parameters()) + list(self.reward_decoder.parameters()) + list(self.online_projector.parameters())
