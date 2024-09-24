@@ -58,7 +58,7 @@ class ConsensusBuilder(nn.Module):
             predict_reward = self.reward_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.n_actions)], dim=-1)) # [bs * ts - k * n_agents, 1]
             predict_representation = self.hidden_state_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.n_actions)], dim=-1)) # [bs * ts - k * n_agents, rnn_hidden_dim]
             hidden_state_loss += F.mse_loss(predict_representation, next_hidden_states[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.rnn_hidden_dim).clone().detach()) 
-            predict_reward += F.mse_loss(predict_reward, rewards[:, t:t-self.args.pred_len, :].unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach())
+            reward_loss += F.mse_loss(predict_reward, rewards[:, t:t-self.args.pred_len, :].unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach())
         projection = self.online_projector(predict_representation) # [bs * ts - k * n_agents, consensus_dim]
 
         return projection, hidden_state_loss, reward_loss
