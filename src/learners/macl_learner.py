@@ -42,11 +42,8 @@ class MACLLearner:
 
     def train(self, batch: EpisodeBatch, batch_ssl: EpisodeBatch, t_env: int, episode_num: int):
         td_loss = self.calc_rl_loss(batch, t_env, episode_num)
-        # consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
-        consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection = th.tensor(0.0).to(self.args.device), th.tensor(0.0).to(self.args.device), th.tensor(0.0).to(self.args.device), None,None
-        transition_loss = self.args.hidden_state_loss_weight * hidden_state_loss + self.args.reward_loss_weight * reward_loss
-
-        loss = td_loss + transition_loss + self.args.consensus_loss_weight * consensus_loss
+        consensus_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
+        loss = td_loss + self.args.consensus_loss_weight * consensus_loss
 
         # Optimise
         self.optimiser.zero_grad()
@@ -55,8 +52,8 @@ class MACLLearner:
         self.optimiser.step()
 
         # EMA
-        # self.cb.update_targets(t_env)
-        # self.center = (self.args.center_tau * self.center + (1 - self.args.center_tau) * target_projection.mean(dim=0, keepdim=True)).detach()
+        self.cb.update_targets(t_env)
+        self.center = (self.args.center_tau * self.center + (1 - self.args.center_tau) * target_projection.mean(dim=0, keepdim=True)).detach()
 
         if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
             self._update_targets()
@@ -66,8 +63,6 @@ class MACLLearner:
             self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("td_loss", td_loss.item(), t_env)
             self.logger.log_stat("consensus_loss", consensus_loss.item(), t_env)
-            self.logger.log_stat("hidden_state_loss", hidden_state_loss.item(), t_env)
-            self.logger.log_stat("reward_loss", reward_loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm, t_env)
 
             # self.logger.log_scalar("online_projection", online_projection[-1].tolist())
@@ -166,20 +161,20 @@ class MACLLearner:
         observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
 
         # online encode and project
-        online_projection, hidden_state_loss, reward_loss = self.cb.calc_student(observations, hidden_states, actions_onehot, next_hidden_states, rewards, states)
-        online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts - k, n_agents, consensus_dim]
+        online_projection = self.cb.calc_student(observations, hidden_states) # [bs * ts * n_agents, consensus_dim]
+        online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts, n_agents, consensus_dim]
         # target encode and project
-        target_projection = self.cb.calc_teacher(observations, hidden_states)
-        center_target_projection = (target_projection.view(-1, self.args.consensus_dim) - self.center.detach()).view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.target_temp # [bs * ts - k, n_agents, consensus_dim]
+        target_projection = self.cb.calc_teacher(observations, hidden_states) # [bs * ts * n_agents, consensus_dim]
+        center_target_projection = (target_projection.view(-1, self.args.consensus_dim) - self.center.detach()).view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.target_temp # [bs * ts, n_agents, consensus_dim]
 
         # consensus loss
-        consensus_loss = - th.bmm(F.softmax(center_target_projection, dim=-1).detach(), th.log_softmax(online_projection, dim=-1).transpose(1, 2)) # [bs * ts - k, n_agents, n_agents]
+        consensus_loss = - th.bmm(F.softmax(center_target_projection, dim=-1).detach(), th.log_softmax(online_projection, dim=-1).transpose(1, 2)) # [bs * ts, n_agents, n_agents]
         # mask out filled data
-        consensus_mask = th.ones_like(consensus_loss, device=consensus_loss.device) # [bs * ts - k, n_agents, n_agents]
-        consensus_mask = consensus_mask * mask[:, self.args.pred_len:, :].unsqueeze(3).expand(-1, -1, self.args.n_agents, self.args.n_agents).reshape(-1, self.args.n_agents, self.args.n_agents) # [bs * ts - k, n_agents, n_agents]
+        consensus_mask = th.ones_like(consensus_loss, device=consensus_loss.device) # [bs * ts, n_agents, n_agents]
+        consensus_mask = consensus_mask * mask.unsqueeze(3).expand(-1, -1, self.args.n_agents, self.args.n_agents).reshape(-1, self.args.n_agents, self.args.n_agents) # [bs * ts, n_agents, n_agents]
         consensus_loss = (consensus_loss * consensus_mask).sum() / consensus_mask.sum()
 
-        return consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection
+        return consensus_loss, online_projection, target_projection
 
     def _update_targets(self):
         self.target_mac.load_state(self.mac)

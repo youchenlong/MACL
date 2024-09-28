@@ -41,29 +41,15 @@ class ConsensusBuilder(nn.Module):
         self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.tau_anneal_time)
         self.tau = self.schedule.eval(0)
     
-    def calc_student(self, inputs, hidden_states, actions, next_hidden_states, rewards, states):
+    def calc_student(self, inputs, hidden_states):
         """
         inputs: [bs, ts, n_agents, input_shape]
         hidden_states: [bs, ts, n_agents, rnn_hidden_dim]
-        actions: [bs, ts, n_agents, n_actions]
-        next_hidden_states: [bs, ts, n_agents, rnn_hidden_dim]
-        rewards: [bs, ts, n_agents, 1]
-        states: [bs, ts, state_shape]
         """     
 
-        representation = self.online_encoder(inputs[:, :-self.args.pred_len, :, :].reshape(-1, self.input_shape), hidden_states[:, :-self.args.pred_len, :, :].reshape(-1, self.args.rnn_hidden_dim))
-        predict_representation = representation # [bs * ts - k * n_agents, rnn_hidden_dim]
-        _states = states.unsqueeze(2).expand(-1, -1, self.args.n_agents, -1) # [bs, ts, n_agents, state_shape]
-        hidden_state_loss = th.tensor(0.0).to(self.args.device)
-        reward_loss = th.tensor(0.0).to(self.args.device)
-        for t in range(self.args.pred_len):
-            predict_reward = self.reward_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len].reshape(-1, self.args.n_actions), _states[:, t:t-self.args.pred_len].reshape(-1, self.args.state_shape)], dim=-1)) # [bs * ts - k * n_agents, 1]
-            predict_representation = self.hidden_state_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.n_actions), _states[:, t:t-self.args.pred_len].reshape(-1, self.args.state_shape)], dim=-1)) # [bs * ts - k * n_agents, rnn_hidden_dim]
-            hidden_state_loss += F.mse_loss(predict_representation, next_hidden_states[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.rnn_hidden_dim).clone().detach()) 
-            reward_loss += F.mse_loss(predict_reward, rewards[:, t:t-self.args.pred_len, :].unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach())
-        projection = self.online_projector(predict_representation) # [bs * ts - k * n_agents, consensus_dim]
-
-        return projection, hidden_state_loss, reward_loss
+        representation = self.online_encoder(inputs.reshape(-1, self.input_shape), hidden_states.reshape(-1, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, rnn_hidden_dim]
+        projection = self.online_projector(representation) # [bs * ts * n_agents, consensus_dim]
+        return projection
     
     def calc_teacher(self, inputs, hidden_states):
         """
@@ -71,13 +57,9 @@ class ConsensusBuilder(nn.Module):
         hidden_states: [bs, ts, n_agents, rnn_hidden_dim]
         """
 
-        representation = self.target_encoder(inputs[:, self.args.pred_len:, :, :].reshape(-1, self.input_shape), hidden_states[:, self.args.pred_len:, :, :].reshape(-1, self.args.rnn_hidden_dim)) # [bs * ts - k * n_agents, rnn_hidden_dim]
-        projection = self.target_projector(representation) # [bs * ts - k * n_agents, consensus_dim]
+        representation = self.target_encoder(inputs.reshape(-1, self.input_shape), hidden_states.reshape(-1, self.args.rnn_hidden_dim)) # [bs * ts * n_agents, rnn_hidden_dim]
+        projection = self.target_projector(representation) # [bs * ts * n_agents, consensus_dim]
         return projection
-
-        # representation = self.target_encoder(inputs[:, self.args.pred_len:], hidden_states[:, self.args.pred_len:]) # [bs, ts-k, n_agents, rnn_hidden_dim]
-        # projection = self.target_projector(representation) # [bs, ts-k, n_agents, consensus_dim]
-        # return projection
 
     def parameters(self):
         return list(self.online_encoder.parameters()) + list(self.hidden_state_decoder.parameters()) + list(self.reward_decoder.parameters()) + list(self.online_projector.parameters())
