@@ -29,7 +29,7 @@ softTemperature: 1
 isSoftmax: False
 
 consensus_dim: 4
-consensus_loss_weight: 0.001
+consensus_loss_weight: 1
 # tau: 0.996
 tau_start: 0.05
 tau_finish: 0.99

@@ -1,35 +1,41 @@
-import torch as th
+import torch
+import torch.nn.functional as F
 
-def infoNCE_loss(features, positive_mask, contrasTemperature, batch_size=512):
-    """
-    features: [bs, feature_dim]
-    positive_mask: [bs, bs]
-    \begin{equation*}
-        \begin{aligned}
-            -\log\frac{exp(g(q, k_+))}{\sum_{i=1}^{k}exp(g(q, k_i))}
-        \end{aligned}
-    \end{equation*}
-    """
-    bs, feature_dim = features.size()
-    total_loss = 0
-    n_batchs = (bs + batch_size - 1) // batch_size
-    for i in range(n_batchs):
-        start = i * batch_size
-        end = min(start + batch_size, bs)
-        features_batch = features[start:end]
-        positive_mask_batch = positive_mask[start:end]
-        # similarity matrix
-        sim_matrix = th.matmul(features_batch, features.T) / contrasTemperature
-        # Stability trick: Subtract the maximum value for numerical stability
-        logits_max, _ = th.max(sim_matrix, dim=1, keepdim=True)
-        logits = sim_matrix - logits_max.detach()
-        # negative logits
-        exp_logits = th.exp(logits)
-        exp_sum = exp_logits.sum(1, keepdim=True) - exp_logits * positive_mask_batch
-        # positive logits
-        log_prob = logits - th.log(exp_sum)
-        # mask out the negative samples
-        log_prob_pos = (positive_mask_batch * log_prob).sum(1) / positive_mask_batch.sum(1)
-        total_loss += -log_prob_pos.mean()
-    total_loss /= n_batchs
-    return total_loss
+def contrastive_loss(embedding, temperature=1.0):
+    embedding = F.normalize(embedding, p=2, dim=-1)
+    batch_size, timesteps, n_agents, embedding_dim = embedding.size()
+    sim_matrix = torch.matmul(embedding.view(batch_size, -1, embedding_dim), embedding.view(batch_size, -1, embedding_dim).transpose(1, 2)) / temperature
+    sim_matrix = sim_matrix - torch.max(sim_matrix, dim=2, keepdim=True)[0]
+    positive_sim = []
+    for t in range(timesteps):
+        for i in range(n_agents):
+            for j in range(n_agents):
+                positive_sim.append(sim_matrix[:, t*n_agents+i, t*n_agents+j])
+                positive_sim.append(sim_matrix[:, t*n_agents+j, t*n_agents+i])
+    positive_sim = torch.stack(positive_sim, dim=1) # [bs, timesteps*n_agents*n_agents*2]
+
+    negative_sim = []
+    for t1 in range(timesteps):
+        for t2 in range(timesteps):
+            for i in range(n_agents):
+                for j in range(n_agents):
+                    negative_sim.append(sim_matrix[:, t1*n_agents+i, t2*n_agents+j])
+                    negative_sim.append(sim_matrix[:, t2*n_agents+j, t1*n_agents+i])
+    negative_sim = torch.stack(negative_sim, dim=1) # [bs, timesteps*timesteps*n_agents*n_agents*2]
+
+    pos_exp = torch.exp(positive_sim)
+    neg_exp = torch.exp(negative_sim)
+    loss = -torch.mean(torch.log(torch.sum(pos_exp, dim=1) / torch.sum(neg_exp, dim=1)))
+
+    return loss
+
+
+
+if __name__ == '__main__':
+    batch_size = 32
+    timesteps = 100
+    n_agents = 10
+    embedding_dim = 64
+    embedding = torch.randn(batch_size, timesteps, n_agents, embedding_dim)
+    loss = contrastive_loss(embedding)
+    print(loss)
