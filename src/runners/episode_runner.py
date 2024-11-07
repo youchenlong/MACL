@@ -90,6 +90,7 @@ class EpisodeRunner:
                     self.logger.log_scalar('player_levels', player_levels)
                     self.logger.log_scalar('food_positions', food_positions)
                     self.logger.log_scalar('food_levels', food_levels)
+                self.logger.log_scalar('hidden_states', self.mac.agent.hidden_states)
 
             episode_return += reward
 

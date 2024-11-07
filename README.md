@@ -67,7 +67,7 @@ The previous config files used for the SMAC Beta have the suffix `_beta`.
 
 ### Visualization
 ```shell
-python src/main.py --config=dsr --env-config=sc2 with env_args.map_name=MMM2 n_subtasks=3 evaluate=True render=True save_replay=True test_nepisode=1 checkpoint_path="C:\Users\admin\Desktop\Task_decomposition\results\models\dsr_MMM2"
+python src/main.py --config=macl --env-config=foraging with env_args.max_food=4 evaluate=True render=True test_nepisode=1 checkpoint_path="/home/oseasy/桌面/MARL/MACL/results/models/macl__2024-11-06_20-24-33"
 ```
 
 ### Saving models

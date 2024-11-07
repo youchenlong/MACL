@@ -42,4 +42,8 @@ class MACLAgent(nn.Module):
         """
         h = self.encoder(inputs, hidden_states)
         q = self.fc2(h)
+        
+        if self.args.evaluate:
+            self.hidden_states = h.clone().detach().reshape(-1, self.args.n_agents, self.args.rnn_hidden_dim).cpu().numpy().tolist()
+
         return q, h
