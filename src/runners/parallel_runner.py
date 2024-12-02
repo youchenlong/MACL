@@ -1,4 +1,5 @@
 from envs import REGISTRY as env_REGISTRY
+from envs import register_smac, register_smacv2
 from functools import partial
 from components.episode_buffer import EpisodeBatch
 from multiprocessing import Pipe, Process
@@ -17,6 +18,10 @@ class ParallelRunner:
 
         # Make subprocesses for the envs
         self.parent_conns, self.worker_conns = zip(*[Pipe() for _ in range(self.batch_size)])
+        if self.args.env == "sc2":
+            register_smac()
+        elif self.args.env == "sc2v2":
+            register_smacv2()
         env_fn = env_REGISTRY[self.args.env]
         self.ps = [Process(target=env_worker, args=(worker_conn, CloudpickleWrapper(partial(env_fn, **self.args.env_args))))
                             for worker_conn in self.worker_conns]
