@@ -23,6 +23,7 @@ class MPEEnv(MultiAgentEnv):
         
         # get nof_agents and nof_actions
         self.n_agents = self._env.n_agents
+        self.n_landmarks = len(self._env.world.landmarks)
         self.n_actions = self.get_total_actions()
         # set random seed
         np.random.seed(seed)
@@ -128,4 +129,8 @@ class MPEEnv(MultiAgentEnv):
             "state": self.get_state(),
         }
         return dynamic_env_info
+    
+    def get_visibility_matrix(self):
+        arr = np.ones((self.n_agents, self.n_agents + self.n_landmarks), dtype=np.bool_)
+        return arr
     

@@ -26,6 +26,7 @@ class ForagingEnv(MultiAgentEnv):
                  render_output_path: str = '',
                  map_name: str = ''):
         self.n_agents = players
+        self.n_foods = max_food
         self.n_actions = 6
         self._total_steps = 0
         self._episode_steps = 0
@@ -133,6 +134,7 @@ class ForagingEnv(MultiAgentEnv):
         self._episode_steps = 0
         self.agent_score = np.zeros(self.n_agents)
         self.obs = self.env.reset()
+        self.food_positions = np.transpose(np.nonzero(self.env.field))
         return self.get_obs(), self.get_state()
 
     def render(self, mode='human'):
@@ -160,3 +162,17 @@ class ForagingEnv(MultiAgentEnv):
             "agent_score": self.agent_score,
         }
         return stats
+    
+    def get_visibility_matrix(self):
+        arr = np.zeros((self.n_agents, self.n_agents + self.n_foods), dtype=np.bool_)
+        for agent_id, agent_unit in enumerate(self.env.players):
+            # agents
+            for ally_id, ally_unit in enumerate(self.env.players):
+                if abs(agent_unit.position[0]-ally_unit.position[0]) <= self.env.sight and abs(agent_unit.position[1]-ally_unit.position[1]) <= self.env.sight:
+                    arr[agent_id, ally_id] = 1
+            # foods
+            for food_id, food_position in enumerate(self.food_positions):
+                if self.env.field[food_position[0]][food_position[1]] > 0 \
+                    and abs(agent_unit.position[0]-food_position[0]) <= self.env.sight and abs(agent_unit.position[1]-food_position[1]) <= self.env.sight:
+                    arr[agent_id, self.n_agents + food_id] = 1
+        return arr
