@@ -19,7 +19,8 @@ env_args:
   reward_only_positive: True
   reward_scale: True
   reward_scale_rate: 20
-  reward_sparse: False
+  # reward_sparse: False
+  reward_sparse: True
   reward_win: 200
   replay_dir: ""
   replay_prefix: ""

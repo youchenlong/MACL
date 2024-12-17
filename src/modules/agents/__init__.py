@@ -2,8 +2,8 @@ REGISTRY = {}
 
 from .rnn_agent import RNNAgent
 from .dsr_agent import DSRAgent
-from .macl_agent import MACLAgent
+from .tom_agent import ToMAgent
 
 REGISTRY["rnn"] = RNNAgent
 REGISTRY["dsr"] = DSRAgent
-REGISTRY["macl"] = MACLAgent
+REGISTRY["tom"] = ToMAgent

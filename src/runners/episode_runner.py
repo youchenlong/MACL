@@ -69,7 +69,8 @@ class EpisodeRunner:
             pre_transition_data = {
                 "state": [self.env.get_state()],
                 "avail_actions": [self.env.get_avail_actions()],
-                "obs": [self.env.get_obs()]
+                "obs": [self.env.get_obs()],
+                "visible": [self.get_visibility_matrix()]
             }
 
             self.batch.update(pre_transition_data, ts=self.t)
@@ -94,7 +95,7 @@ class EpisodeRunner:
                     self.logger.log_scalar('player_levels', player_levels)
                     self.logger.log_scalar('food_positions', food_positions)
                     self.logger.log_scalar('food_levels', food_levels)
-                self.logger.log_scalar('hidden_states', self.mac.agent.hidden_states)
+                # self.logger.log_scalar('hidden_states', self.mac.agent.hidden_states)
 
             episode_return += reward
 
@@ -152,3 +153,8 @@ class EpisodeRunner:
             if k != "n_episodes":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
         stats.clear()
+
+    def get_visibility_matrix(self):
+        mask = self.env.env.get_visibility_matrix() # [n_agents, n_agents + n_enemies]
+        n_agents = mask.shape[0]
+        return mask[:, :n_agents] # [n_agents, n_agents]

@@ -1,0 +1,45 @@
+# --- QMIX specific parameters ---
+
+# use epsilon greedy action selector
+action_selector: "epsilon_greedy"
+epsilon_start: 1.0
+epsilon_finish: 0.05
+epsilon_anneal_time: 50000
+
+runner: "episode"
+
+buffer_size: 5000
+
+# update the target network every {} episodes
+target_update_interval: 200
+
+# use the Q_Learner to train
+agent_output_type: "q"
+learner: "tom_learner"
+double_q: True
+mixer: "qmix"
+mixing_embed_dim: 32
+hypernet_layers: 2
+hypernet_embed: 64
+
+mac: "tom_mac"
+agent: "tom"
+mental_dim: 32
+NN_HIDDEN_DIM: 32
+num_heads: 1
+attn_dim: 16
+softTemperature: 1
+isSoftmax: False
+
+reg_loss_weight: 1
+
+state_info_dict:  {
+                        '3m': {'nf_move': 4, 'nf_own': 1, 'nf_al': 5, 'nf_en': 5, 'n_allies': 2, 'n_enemies': 3, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 0},
+            'protoss_5_vs_5': {'nf_move': 4, 'nf_own': 7, 'nf_al': 9, 'nf_en': 9, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3},
+             'terran_5_vs_5': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 3},
+               'zerg_5_vs_5': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 8, 'is_protoss': False, 'unit_type_bits': 3},
+          'protoss_10_vs_11': {'nf_move': 4, 'nf_own': 7, 'nf_al': 9, 'nf_en': 9, 'n_allies': 9, 'n_enemies': 11, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3},
+           'terran_10_vs_11': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 9, 'n_enemies': 11, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 3},
+             'zerg_10_vs_11': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 9, 'n_enemies': 11, 'sight_range': 8, 'is_protoss': False, 'unit_type_bits': 3}}
+
+name: "tom"

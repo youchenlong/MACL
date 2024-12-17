@@ -34,17 +34,16 @@ The requirements.txt file can be used to install the necessary packages into a v
 
 ## Run an experiment 
 ```shell
-python src/main.py --config=macl --env-config=foraging with env_args.max_food=4 batch_size=32
+python src/main.py --config=dsr --env-config=foraging with env_args.max_food=4 batch_size=32
 ```
 ```shell
-python src/main.py --config=macl --env-config=pred_prey_punish with batch_size=32
+python src/main.py --config=dsr --env-config=pred_prey_punish with batch_size=32
 ```
 ```shell
-# cooperative navigation
-python src/main.py --config=macl --env-config=mpe with env_args.map_name=simple_spread batch_size=32
+python src/main.py --config=tom --env-config=sc2 with env_args.map_name=3m batch_size=32 t_max=2050000
 ```
 ```shell
-python src/main.py --config=macl --env-config=sc2 with env_args.map_name=MMM2 batch_size=32 t_max=2050000
+python src/main.py --config=tom --env-config=sc2v2 with env_args.map_name="protoss_5_vs_5"
 ```
 
 
@@ -67,7 +66,7 @@ The previous config files used for the SMAC Beta have the suffix `_beta`.
 
 ### Visualization
 ```shell
-python src/main.py --config=macl --env-config=foraging with env_args.max_food=4 evaluate=True render=True test_nepisode=1 checkpoint_path="/home/oseasy/桌面/MARL/MACL/results/models/macl__2024-11-06_20-24-33"
+python src/main.py --config=qmix --env-config=sc2v2 with env_args.map_name=protoss_5_vs_5 evaluate=True render=True save_replay=True test_nepisode=3 checkpoint_path=""C:\Users\admin\Desktop\ToM\results\models\qmix_protoss_5_vs_5"
 ```
 
 ### Saving models
