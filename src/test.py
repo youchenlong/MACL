@@ -171,7 +171,7 @@ if __name__ == "__main__":
     #     config_dict = yaml.load(f, Loader=yaml.FullLoader)
     #     env_config = config_dict["env_args"]
     # register_smac()
-    # env_config["map_name"] = "3m"
+    # env_config["map_name"] = "2s_vs_1sc"
     # env_config["seed"] = seed
     # env = REGISTRY[env_name](**env_config)
     # env.reset()
@@ -179,36 +179,40 @@ if __name__ == "__main__":
     # (n_enemies, nf_en) = env.env.get_obs_enemy_feats_size()
     # (n_allies, nf_al) = env.env.get_obs_ally_feats_size()
     # nf_own = env.env.get_obs_own_feats_size()
+    # print(nf_move, nf_own, nf_al, nf_en, n_allies, n_enemies)
     # sight_range = 9
-    # is_protoss = False
+    # is_protoss = True
     # unit_type_bits = 0
     # agent_id = 0
     # obs = env.get_obs_agent(agent_id)
     # imagined_obs = imagined_obs_agent_sc2(agent_id, obs, n_enemies, n_allies, nf_move, nf_en, nf_al, nf_own, sight_range, is_protoss, unit_type_bits)
-    # print(imagined_obs)
+    # # print(imagined_obs)
+    # time.sleep(100)
 
     
     
-    # seed = 0
-    # env_name = "sc2v2"
-    # with open(os.path.join(os.path.dirname(__file__), "config", "envs", "{}.yaml".format(env_name)), "r") as f:
-    #     config_dict = yaml.load(f, Loader=yaml.FullLoader)
-    #     env_config = config_dict["env_args"]
-    # register_smacv2()
-    # env_config["map_name"] = "protoss_5_vs_5"
-    # env_config["seed"] = seed
-    # env = REGISTRY[env_name](**env_config)
-    # env.reset()
-    # nf_move = env.env.get_obs_move_feats_size()
-    # (n_enemies, nf_en) = env.env.get_obs_enemy_feats_size()
-    # (n_allies, nf_al) = env.env.get_obs_ally_feats_size()
-    # nf_own = env.env.get_obs_own_feats_size()
-    # sight_range = 9
-    # is_protoss = True
-    # unit_type_bits = 3
-    # agent_id = 0
-    # obs = env.get_obs_agent(agent_id)
-    # imagined_obs = imagined_obs_agent_sc2v2(agent_id, obs, n_enemies, n_allies, move_feats_dim, enemy_feats_dim, ally_feats_dim, own_feats_dim, sight_range, is_protoss, unit_type_bits)
-    # print(imagined_obs.shape)
+    seed = 0
+    env_name = "sc2v2"
+    with open(os.path.join(os.path.dirname(__file__), "config", "envs", "{}.yaml".format(env_name)), "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.FullLoader)
+        env_config = config_dict["env_args"]
+    register_smacv2()
+    env_config["map_name"] = "zerg_10_vs_10"
+    env_config["seed"] = seed
+    env = REGISTRY[env_name](**env_config)
+    env.reset()
+    nf_move = env.env.get_obs_move_feats_size()
+    (n_enemies, nf_en) = env.env.get_obs_enemy_feats_size()
+    (n_allies, nf_al) = env.env.get_obs_ally_feats_size()
+    nf_own = env.env.get_obs_own_feats_size()
+    print(nf_move, nf_own, nf_al, nf_en, n_allies, n_enemies)
+    sight_range = 9
+    is_protoss = True
+    unit_type_bits = 3
+    agent_id = 0
+    obs = env.get_obs_agent(agent_id)
+    imagined_obs = imagined_obs_agent_sc2v2(agent_id, obs, n_enemies, n_allies, move_feats_dim, enemy_feats_dim, ally_feats_dim, own_feats_dim, sight_range, is_protoss, unit_type_bits)
+    print(imagined_obs.shape)
+    time.sleep(100)
 
     print("hello")
