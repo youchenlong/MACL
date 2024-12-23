@@ -95,7 +95,6 @@ class StarCraft2Env(MultiAgentEnv):
             window_size_x=1920,
             window_size_y=1200,
             heuristic_ai=False,
-            heuristic_rest=False,
             debug=False,
             is_replay=False
     ):

@@ -16,9 +16,9 @@ env_args:
   reward_death_value: 10
   reward_defeat: 0
   reward_negative_scale: 0.5
-  reward_only_positive: True
+  reward_only_positive: False # True
   reward_scale: True
-  reward_scale_rate: 20
+  reward_scale_rate: 10 # 20
   reward_sparse: False
   reward_win: 200
   replay_dir: ""
@@ -27,9 +27,8 @@ env_args:
   state_timestep_number: False
   step_mul: 8
   seed: null
-  heuristic_ai: False
-  heuristic_rest: False
   debug: False
+  is_replay: False
 
 t_max: 2050000
 test_nepisode: 32
