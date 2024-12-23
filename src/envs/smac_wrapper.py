@@ -1,4 +1,4 @@
-from smac.env import StarCraft2Env
+from .starcraft2 import StarCraft2Env
 
 from .multiagentenv import MultiAgentEnv
 

@@ -1,10 +1,7 @@
 from functools import partial
 from .multiagentenv import MultiAgentEnv
 from .stag_hunt import StagHunt
-# from .matrix_game.nstep_matrix_game import NStepMatrixGame
-# from .rware import RWAREEnv
 from .lbforaging import ForagingEnv
-# from .sisl import SislEnv
 from .mpe import MPEEnv
 import sys
 import os
@@ -18,10 +15,7 @@ def env_fn(env, **kwargs) -> MultiAgentEnv:
 
 REGISTRY = {}
 REGISTRY["stag_hunt"] = partial(env_fn, env=StagHunt)
-# REGISTRY["nstep_matrix"] = partial(env_fn, env=NStepMatrixGame)
-# REGISTRY["rware"] = partial(env_fn, env=RWAREEnv)
 REGISTRY["foraging"] = partial(env_fn, env=ForagingEnv)
-# REGISTRY["sisl"] = partial(env_fn, env=SislEnv)
 REGISTRY["mpe"] = partial(env_fn, env=MPEEnv)
 
 def register_smac():

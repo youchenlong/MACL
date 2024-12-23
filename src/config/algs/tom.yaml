@@ -35,16 +35,16 @@ reg_loss_weight: 1
 
 state_info_dict:  {
                         '3m': {'nf_move': 4, 'nf_own': 1, 'nf_al': 5, 'nf_en': 5, 'n_allies': 2, 'n_enemies': 3, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 0},
-                        '8m': {'nf_move': 4, 'nf_own': 1, 'nf_al': 5, 'nf_en': 5, 'n_allies': 7, 'n_enemies': 8, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 0}
-                  '2m_vs_1z': {'nf_move': 4, 'nf_own': 1, 'nf_al': 5, 'nf_en': 6, 'n_allies': 1, 'n_enemies': 1, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 0}
-                      '2s3z': {'nf_move': 4, 'nf_own': 4, 'nf_al': 8, 'nf_en': 8, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 2}
-                      '3s5z': {'nf_move': 4, 'nf_own': 4, 'nf_al': 8, 'nf_en': 8, 'n_allies': 7, 'n_enemies': 8, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 2}
-                 '2s_vs_1sc': {'nf_move': 4, 'nf_own': 2, 'nf_al': 6, 'nf_en': 5, 'n_allies': 1, 'n_enemies': 1, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 0}
+                        '8m': {'nf_move': 4, 'nf_own': 1, 'nf_al': 5, 'nf_en': 5, 'n_allies': 7, 'n_enemies': 8, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 0},
+                  '2m_vs_1z': {'nf_move': 4, 'nf_own': 1, 'nf_al': 5, 'nf_en': 6, 'n_allies': 1, 'n_enemies': 1, 'sight_range': 9, 'is_protoss': False, 'unit_type_bits': 0},
+                      '2s3z': {'nf_move': 4, 'nf_own': 4, 'nf_al': 8, 'nf_en': 8, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 2},
+                      '3s5z': {'nf_move': 4, 'nf_own': 4, 'nf_al': 8, 'nf_en': 8, 'n_allies': 7, 'n_enemies': 8, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 2},
+                    '1c3s5z': {'nf_move': 4, 'nf_own': 5, 'nf_al': 9, 'nf_en': 9, 'n_allies': 8, 'n_enemies': 9, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3},
             'protoss_5_vs_5': {'nf_move': 4, 'nf_own': 7, 'nf_al': 9, 'nf_en': 9, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3},
-          'protoss_10_vs_10': {'nf_move': 4, 'nf_own': 7, 'nf_al': 9, 'nf_en': 9, 'n_allies': 9, 'n_enemies': 10, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3}
+          'protoss_10_vs_10': {'nf_move': 4, 'nf_own': 7, 'nf_al': 9, 'nf_en': 9, 'n_allies': 9, 'n_enemies': 10, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3},
           'protoss_10_vs_11': {'nf_move': 4, 'nf_own': 7, 'nf_al': 9, 'nf_en': 9, 'n_allies': 9, 'n_enemies': 11, 'sight_range': 9, 'is_protoss': True, 'unit_type_bits': 3},
                'zerg_5_vs_5': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 4, 'n_enemies': 5, 'sight_range': 8, 'is_protoss': False, 'unit_type_bits': 3},
-             'zerg_10_vs_10': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 9, 'n_enemies': 10, 'sight_range': 8, 'is_protoss': False, 'unit_type_bits': 3}
+             'zerg_10_vs_10': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 9, 'n_enemies': 10, 'sight_range': 8, 'is_protoss': False, 'unit_type_bits': 3},
              'zerg_10_vs_11': {'nf_move': 4, 'nf_own': 6, 'nf_al': 8, 'nf_en': 8, 'n_allies': 9, 'n_enemies': 11, 'sight_range': 8, 'is_protoss': False, 'unit_type_bits': 3},     
              }
 
