@@ -19,9 +19,9 @@ def plot(filename):
 
 def main():
     dir_name = os.path.join(os.getcwd(), "results/sacred")
-    alg_name = "macl"
-    map_name = "5m_vs_6m"
-    t = "3"
+    alg_name = "qmix"
+    map_name = "1c3s5z"
+    t = "1"
     filename = os.path.join(dir_name, alg_name, map_name, t, "info.json")
 
     plot(filename)
