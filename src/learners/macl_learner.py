@@ -42,8 +42,7 @@ class MACLLearner:
 
     def train(self, batch: EpisodeBatch, batch_ssl: EpisodeBatch, t_env: int, episode_num: int):
         td_loss = self.calc_rl_loss(batch, t_env, episode_num)
-        # consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
-        consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection = th.tensor(0.0).to(self.args.device), th.tensor(0.0).to(self.args.device), th.tensor(0.0).to(self.args.device), None,None
+        consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection = self.calc_consensus_loss(batch_ssl, t_env, episode_num)
         transition_loss = self.args.hidden_state_loss_weight * hidden_state_loss + self.args.reward_loss_weight * reward_loss
 
         loss = td_loss + transition_loss + self.args.consensus_loss_weight * consensus_loss
@@ -55,8 +54,8 @@ class MACLLearner:
         self.optimiser.step()
 
         # EMA
-        # self.cb.update_targets(t_env)
-        # self.center = (self.args.center_tau * self.center + (1 - self.args.center_tau) * target_projection.mean(dim=0, keepdim=True)).detach()
+        self.cb.update_targets(t_env)
+        self.center = (self.args.center_tau * self.center + (1 - self.args.center_tau) * target_projection.mean(dim=0, keepdim=True)).detach()
 
         if (episode_num - self.last_target_update_episode) / self.args.target_update_interval >= 1.0:
             self._update_targets()
@@ -166,7 +165,8 @@ class MACLLearner:
         observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
 
         # online encode and project
-        online_projection, hidden_state_loss, reward_loss = self.cb.calc_student(observations, hidden_states, actions_onehot, next_hidden_states, rewards, states)
+        online_projection, hidden_state_loss, _ = self.cb.calc_student(observations, hidden_states, actions_onehot, next_hidden_states, rewards, states)
+        reward_loss = th.tensor(0.0).to(self.args.device)
         online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts - k, n_agents, consensus_dim]
         # target encode and project
         target_projection = self.cb.calc_teacher(observations, hidden_states)

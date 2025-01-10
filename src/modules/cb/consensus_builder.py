@@ -75,10 +75,6 @@ class ConsensusBuilder(nn.Module):
         projection = self.target_projector(representation) # [bs * ts - k * n_agents, consensus_dim]
         return projection
 
-        # representation = self.target_encoder(inputs[:, self.args.pred_len:], hidden_states[:, self.args.pred_len:]) # [bs, ts-k, n_agents, rnn_hidden_dim]
-        # projection = self.target_projector(representation) # [bs, ts-k, n_agents, consensus_dim]
-        # return projection
-
     def parameters(self):
         return list(self.online_encoder.parameters()) + list(self.hidden_state_decoder.parameters()) + list(self.reward_decoder.parameters()) + list(self.online_projector.parameters())
 
