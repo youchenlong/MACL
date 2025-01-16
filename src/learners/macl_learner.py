@@ -73,6 +73,7 @@ class MACLLearner:
             # self.logger.log_scalar("target_projection", target_projection[-1].tolist())
             # self.logger.log_scalar("mean_online_projection", online_projection.mean(dim=0).tolist())
             # self.logger.log_scalar("mean_target_projection", target_projection.mean(dim=0).tolist())
+            self.logger.log_scalar("center", self.center.tolist())
 
             self.log_stats_t = t_env
 
@@ -165,21 +166,21 @@ class MACLLearner:
         observations = th.stack(observations, dim=1) # [bs, ts, n_agents, input_shape]
 
         # online encode and project
-        online_projection, hidden_state_loss, _ = self.cb.calc_student(observations, hidden_states, actions_onehot, next_hidden_states, rewards, states)
-        reward_loss = th.tensor(0.0).to(self.args.device)
+        online_projection, hidden_state_loss, reward_loss = self.cb.calc_student(observations, hidden_states, actions_onehot, next_hidden_states, rewards, states)
         online_projection = online_projection.view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.online_temp # [bs * ts - k, n_agents, consensus_dim]
         # target encode and project
         target_projection = self.cb.calc_teacher(observations, hidden_states)
-        center_target_projection = (target_projection.view(-1, self.args.consensus_dim) - self.center.detach()).view(-1, self.args.n_agents, self.args.consensus_dim) / self.args.target_temp # [bs * ts - k, n_agents, consensus_dim]
+        target_projection = target_projection.view(-1, self.args.n_agents, self.args.consensus_dim).detach()
+        center_target_projection = (target_projection - self.center.detach()) / self.args.target_temp # [bs * ts - k, n_agents, consensus_dim]
 
         # consensus loss
-        consensus_loss = - th.bmm(F.softmax(center_target_projection, dim=-1).detach(), th.log_softmax(online_projection, dim=-1).transpose(1, 2)) # [bs * ts - k, n_agents, n_agents]
+        consensus_loss = - th.bmm(F.softmax(center_target_projection, dim=-1), F.log_softmax(online_projection, dim=-1).transpose(1, 2)) # [bs * ts - k, n_agents, n_agents]
         # mask out filled data
         consensus_mask = th.ones_like(consensus_loss, device=consensus_loss.device) # [bs * ts - k, n_agents, n_agents]
         consensus_mask = consensus_mask * mask[:, self.args.pred_len:, :].unsqueeze(3).expand(-1, -1, self.args.n_agents, self.args.n_agents).reshape(-1, self.args.n_agents, self.args.n_agents) # [bs * ts - k, n_agents, n_agents]
         consensus_loss = (consensus_loss * consensus_mask).sum() / consensus_mask.sum()
 
-        return consensus_loss, hidden_state_loss, reward_loss, online_projection, target_projection
+        return consensus_loss, hidden_state_loss, reward_loss, online_projection.view(-1, self.args.consensus_dim), target_projection.view(-1, self.args.consensus_dim)
 
     def _update_targets(self):
         self.target_mac.load_state(self.mac)

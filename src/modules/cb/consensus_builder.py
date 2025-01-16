@@ -38,8 +38,9 @@ class ConsensusBuilder(nn.Module):
             nn.Linear(self.args.consensus_dim * 2, self.args.consensus_dim)
         )
 
-        self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.tau_anneal_time)
-        self.tau = self.schedule.eval(0)
+        # self.schedule = LinearSchedule(args.tau_start, args.tau_finish, args.tau_anneal_time)
+        # self.tau = self.schedule.eval(0)
+        self.tau = self.args.tau
     
     def calc_student(self, inputs, hidden_states, actions, next_hidden_states, rewards, states):
         """
@@ -57,10 +58,10 @@ class ConsensusBuilder(nn.Module):
         hidden_state_loss = th.tensor(0.0).to(self.args.device)
         reward_loss = th.tensor(0.0).to(self.args.device)
         for t in range(self.args.pred_len):
-            predict_reward = self.reward_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len].reshape(-1, self.args.n_actions), _states[:, t:t-self.args.pred_len].reshape(-1, self.args.state_shape)], dim=-1)) # [bs * ts - k * n_agents, 1]
             predict_representation = self.hidden_state_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.n_actions), _states[:, t:t-self.args.pred_len].reshape(-1, self.args.state_shape)], dim=-1)) # [bs * ts - k * n_agents, rnn_hidden_dim]
             hidden_state_loss += F.mse_loss(predict_representation, next_hidden_states[:, t:t-self.args.pred_len, :, :].reshape(-1, self.args.rnn_hidden_dim).clone().detach()) 
-            reward_loss += F.mse_loss(predict_reward, rewards[:, t:t-self.args.pred_len, :].unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach())
+            # predict_reward = self.reward_decoder(th.cat([predict_representation, actions[:, t:t-self.args.pred_len].reshape(-1, self.args.n_actions), _states[:, t:t-self.args.pred_len].reshape(-1, self.args.state_shape)], dim=-1)) # [bs * ts - k * n_agents, 1]
+            # reward_loss += F.mse_loss(predict_reward, rewards[:, t:t-self.args.pred_len, :].unsqueeze(2).expand(-1, -1, self.args.n_agents, -1).reshape(-1, 1).clone().detach())
         projection = self.online_projector(predict_representation) # [bs * ts - k * n_agents, consensus_dim]
 
         return projection, hidden_state_loss, reward_loss
@@ -79,7 +80,7 @@ class ConsensusBuilder(nn.Module):
         return list(self.online_encoder.parameters()) + list(self.hidden_state_decoder.parameters()) + list(self.reward_decoder.parameters()) + list(self.online_projector.parameters())
 
     def update_targets(self, t_env):
-        self.tau = self.schedule.eval(t_env)
+        # self.tau = self.schedule.eval(t_env)
 
         for param_o, param_t in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
             param_t.data = param_t.data * self.tau + param_o.data * (1. - self.tau)
