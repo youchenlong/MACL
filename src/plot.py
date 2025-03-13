@@ -4,47 +4,67 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot(kwargs):
-    filename = os.path.join(kwargs["dir_name"], kwargs["alg_name"], kwargs["map_name"], kwargs["t"], kwargs["filename"])
-    with open(filename, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    
+def resolve(data):
+    confidence = 0.95
+    assert type(data) == np.ndarray
+    _mean = np.mean(data, axis=0)
+    _std = np.std(data, axis=0)
+    _max = _mean + _std * confidence
+    _min = _mean - _std * confidence
+    return _mean, _max, _min, _std
 
-    fig, ax = plt.subplots(2, 3, figsize=(15, 10))
+
+def get_test_result(kwargs):
+    test_result = {}
+    test_battle_won_means = []
+    test_return_means = []
+    # for time in kwargs["t"]:
+    for time in os.listdir(os.path.join(kwargs["dir_name"], kwargs["alg_name"], kwargs["map_name"])):
+        filename = os.path.join(kwargs["dir_name"], kwargs["alg_name"], kwargs["map_name"], time, kwargs["filename"])
+        with open(filename, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if kwargs["map_name"] in ["lbf", "simple_spread", "PP"]:
+                pass
+            else:
+                test_battle_won_mean = data["test_battle_won_mean"][:kwargs["max_len"]]
+                test_battle_won_means.append(test_battle_won_mean)
+            test_return_mean = [item["value"] for item in data["test_return_mean"]][:kwargs["max_len"]]
+            test_return_means.append(test_return_mean)
+    test_result["test_battle_won_mean"] = np.array(test_battle_won_means)
+    test_result["test_return_mean"] = np.array(test_return_means)
+    return test_result
+
+
+def plot(kwargs):
+    result = get_test_result(kwargs)
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
     fig.suptitle(kwargs["map_name"])
     if kwargs["map_name"] in ["lbf", "simple_spread", "PP"]:
         pass
     else:
-        ax[0, 0].plot(data["test_battle_won_mean"])
-        ax[0, 0].set_title("test_battle_won_mean")
-    ax[0, 1].plot([item["value"] for item in data["test_return_mean"]])
-    ax[0, 1].set_title("test_return_mean")
-    ax[0, 2].plot(data["loss"])
-    ax[0, 2].set_title("loss")
-    ax[1, 0].plot(data["td_loss"])
-    ax[1, 0].set_title("td_loss")
-    ax[1, 1].plot(data["consensus_loss"])
-    ax[1, 1].set_title("consensus_loss")
-    ax[1, 2].plot(data["hidden_state_loss"])
-    ax[1, 2].set_title("hidden_state_loss")
-
-    # ax[1, 0].plot(data["td_error_abs"])
-    # ax[1, 0].plot("td_error_abs")
+        _mean, _max, _min, _std = resolve(result["test_battle_won_mean"])
+        ax[0].plot(_mean, color="#d62728")
+        ax[0].fill_between(_max, _min, facecolor="#d62728", alpha=0.1)
+        ax[0].set_title("test_battle_won_mean")
+    _mean, _max, _min, _std = resolve(result["test_return_mean"])
+    x = np.linspace(0, kwargs["max_len"]//100, kwargs["max_len"])
+    ax[1].plot(x, _mean, color="#d62728")
+    ax[1].fill_between(x, _max, _min, facecolor="#d62728", alpha=0.1)
+    ax[1].set_title("test_return_mean")
     plt.show()
 
 
-def main(map_name="lbf"):
+def main():
+    # map_names = ["lbf", "simple_spread", "3s5z", "1c3s5z", "2s_vs_1sc", "10m_vs_11m", "2s3z", "2c_vs_64zg", "MMM2", "5m_vs_6m", "3s_vs_5z", "corridor", "3s5z_vs_3s6z"]
     kwargs = {}
     kwargs["dir_name"] = os.path.join(os.getcwd(), "results/sacred")
+    # kwargs["dir_name"] = os.path.join("/home/oseasy/桌面", "results/sacred")
     kwargs["alg_name"] = "macl"
-    kwargs["map_name"] = map_name
-    kwargs["t"] = "1"
+    kwargs["map_name"] = "lbf"
     kwargs["filename"] = "info.json"
+    kwargs["max_len"] = 400
     plot(kwargs)
 
 
 if __name__ == "__main__":
-    map_names = ["lbf", "PP", "3s5z", "1c3s5z", "2s_vs_1sc", "10m_vs_11m", "2s3z", "2c_vs_64zg", "MMM2", "5m_vs_6m", "3s_vs_5z", "corridor", "3s5z_vs_3s6z"]
-    for map_name in map_names:
-        main(map_name)
-    # main()
+    main()
