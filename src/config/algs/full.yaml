@@ -25,7 +25,6 @@ hypernet_embed: 64
 mac: "full_mac"
 agent: "full"
 
-hidden_dim_1: 128
-hidden_dim_2: 64
+hidden_dim: 64
 
 name: "full"

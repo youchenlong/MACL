@@ -7,8 +7,9 @@ class FullMAC:
     def __init__(self, scheme, groups, args):
         self.n_agents = args.n_agents
         self.args = args
-        input_shape = self._get_input_shape(scheme)
-        self._build_agents(input_shape)
+        obs_dim = self._get_obs_dim(scheme)
+        state_dim = self._get_state_dim(scheme)
+        self._build_agents(obs_dim, state_dim)
         self.agent_output_type = args.agent_output_type
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
@@ -39,7 +40,6 @@ class FullMAC:
                     agent_outs[reshaped_avail_actions == 0] = 0.0
         return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
 
-
     def init_hidden(self, batch_size):
         pass
 
@@ -58,28 +58,41 @@ class FullMAC:
     def load_models(self, path):
         self.agent.load_state_dict(th.load("{}/agent.th".format(path), map_location=lambda storage, loc: storage))
 
-    def _build_agents(self, input_shape):
-        self.agent = agent_REGISTRY[self.args.agent](input_shape, self.args)
+    def _build_agents(self, obs_dim, state_dim):
+        self.agent = agent_REGISTRY[self.args.agent](obs_dim, state_dim, self.args)
 
     def _build_inputs(self, batch, t):
         bs = batch.batch_size
-        inputs = []
-        inputs.append(batch["state"][:, t].unsqueeze(1).expand(-1, self.n_agents, -1))
+        obs, state = [], []
+        obs.append(batch["obs"][:, t])
+        state.append(batch["state"][:, t].unsqueeze(1).expand(-1, self.n_agents, -1))
         if self.args.obs_last_action:
             if t == 0:
-                inputs.append(th.zeros_like(batch["actions_onehot"][:, t]))
+                obs.append(th.zeros_like(batch["actions_onehot"][:, t]))
+                state.append(th.zeros_like(batch["actions_onehot"][:, t]))
             else:
-                inputs.append(batch["actions_onehot"][:, t-1])
+                obs.append(batch["actions_onehot"][:, t-1])
+                state.append(batch["actions_onehot"][:, t-1])
         if self.args.obs_agent_id:
-            inputs.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
-
-        inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1)
+            obs.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
+            state.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
+        obs = th.cat([x.reshape(bs*self.n_agents, -1) for x in obs], dim=1)
+        state = th.cat([x.reshape(bs*self.n_agents, -1) for x in state], dim=1)
+        inputs = [obs, state]
         return inputs
 
-    def _get_input_shape(self, scheme):
-        input_shape = scheme["state"]["vshape"]
+    def _get_obs_dim(self, scheme):
+        obs_dim = scheme["obs"]["vshape"]
         if self.args.obs_last_action:
-            input_shape += scheme["actions_onehot"]["vshape"][0]
-        if self.args.obs_agent_id: 
-            input_shape += self.n_agents
-        return input_shape
+            obs_dim += scheme["actions_onehot"]["vshape"][0]
+        if self.args.obs_agent_id:
+            obs_dim += self.n_agents
+        return obs_dim
+
+    def _get_state_dim(self, scheme):
+        state_dim = scheme["state"]["vshape"]
+        if self.args.obs_last_action:
+            state_dim += scheme["actions_onehot"]["vshape"][0]
+        if self.args.obs_agent_id:
+            state_dim += self.n_agents
+        return state_dim
