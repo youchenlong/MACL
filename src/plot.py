@@ -55,15 +55,30 @@ def plot(kwargs):
 
 
 def main():
-    # map_names = ["lbf", "simple_spread", "3s5z", "1c3s5z", "2s_vs_1sc", "10m_vs_11m", "2s3z", "2c_vs_64zg", "MMM2", "5m_vs_6m", "3s_vs_5z", "corridor", "3s5z_vs_3s6z"]
     kwargs = {}
     kwargs["dir_name"] = os.path.join(os.getcwd(), "results/sacred")
     # kwargs["dir_name"] = os.path.join("/home/oseasy/桌面", "results/sacred")
     kwargs["alg_name"] = "macl"
-    kwargs["map_name"] = "lbf"
-    kwargs["filename"] = "info.json"
-    kwargs["max_len"] = 400
-    plot(kwargs)
+    env_info = {
+        "lbf": 400,
+        "simple_spread": 200,
+        "3s5z": 200,
+        "1c3s5z": 200,
+        "2s_vs_1sc": 200,
+        "10m_vs_11m": 200,
+        "2s3z": 200,
+        "2c_vs_64zg": 200,
+        "MMM2": 200,
+        "5m_vs_6m": 200,
+        "3s_vs_5z": 200,
+        "corridor": 500,
+        "3s5z_vs_3s6z": 500
+    }
+    for map_name, max_len in env_info.items():
+        kwargs["map_name"] = map_name
+        kwargs["max_len"] = max_len
+        kwargs["filename"] = "info.json"
+        plot(kwargs)
 
 
 if __name__ == "__main__":
