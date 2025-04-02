@@ -14,6 +14,8 @@ class FullMAC:
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
 
+        self.hidden_states = None
+
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
         # Only select actions for the selected batch elements in bs
         avail_actions = ep_batch["avail_actions"][:, t_ep]
@@ -24,7 +26,7 @@ class FullMAC:
     def forward(self, ep_batch, t, test_mode=False):
         agent_inputs = self._build_inputs(ep_batch, t)
         agent_actions = ep_batch["avail_actions"][:, t]
-        agent_outs = self.agent(agent_inputs)
+        agent_outs, self.hidden_states = self.agent(agent_inputs, self.hidden_states)
         if self.agent_output_type == "pi_logits":
             if getattr(self.args, "mask_before_softmax", True):
                 reshaped_avail_actions = agent_actions.reshape(ep_batch.batch_size * self.n_agents, -1)
@@ -41,7 +43,7 @@ class FullMAC:
         return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
 
     def init_hidden(self, batch_size):
-        pass
+        self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)
 
     def parameters(self):
         return self.agent.parameters()

@@ -58,7 +58,7 @@ def main():
     kwargs = {}
     kwargs["dir_name"] = os.path.join(os.getcwd(), "results/sacred")
     # kwargs["dir_name"] = os.path.join("/home/oseasy/桌面", "results/sacred")
-    kwargs["alg_name"] = "macl"
+    kwargs["alg_name"] = "full"
     env_info = {
         "lbf": 400,
         "simple_spread": 200,
